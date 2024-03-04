@@ -2,6 +2,8 @@
 const { app, BrowserWindow, protocol } = require("electron");
 const path = require("path");
 const url = require("url");
+const remoteMain = require('@electron/remote/main');
+remoteMain.initialize();
 
 // Create the native browser window.
 function createWindow() {
@@ -13,6 +15,7 @@ function createWindow() {
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: true,
+            enableRemoteModule: true,
             preload: path.join(__dirname, "preload.js"),
         },
     });
@@ -35,6 +38,8 @@ function createWindow() {
     if (!app.isPackaged) {
         mainWindow.webContents.openDevTools();
     }
+
+    remoteMain.enable(mainWindow.webContents);
 }
 
 // Setup a local proxy to adjust the paths of requested files when loading
