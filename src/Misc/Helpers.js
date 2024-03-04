@@ -4,9 +4,13 @@ export const Navigate = (path) => {
     window.location.hash = '#' + path;
 }
 
-export const showNotification = (title, message, severity) => {
+export const ShowNotification = (title, message, severity) => {
     toast(message, {
         "position": "top-right",
         "theme": "dark"
     });
 };
+
+export const GetSystemInfo = async () => {
+    return await window.electron.getSystemData();
+}

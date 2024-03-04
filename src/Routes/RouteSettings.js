@@ -1,7 +1,7 @@
 import { Box, Button, Container, IconButton, InputAdornment, TextField, Typography } from "@mui/material";
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import { useRef, useState } from "react";
-import { showNotification } from "../Misc/Helpers";
+import { ShowNotification } from "../Misc/Helpers";
 
 function RouteSettings() {
     const llamaFileInput = useRef(null);
@@ -25,10 +25,11 @@ function RouteSettings() {
         }
 
         if(!mainFile){
-            showNotification("", "Invalid llama.cpp directory");
+            ShowNotification("", "Invalid llama.cpp directory");
         }
 
         console.log(mainFile);
+        console.log(window.electron.homeDir);
     }        
 
     return (

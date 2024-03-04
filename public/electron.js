@@ -2,29 +2,20 @@
 const { app, BrowserWindow, protocol } = require("electron");
 const path = require("path");
 const url = require("url");
-const isDev = require("electron-is-dev");
 
 // Create the native browser window.
 function createWindow() {
-    if (isDev) {
-        protocol.registerBufferProtocol(Protocol.scheme, Protocol.requestHandler);
-    }
-
     const mainWindow = new BrowserWindow({
         width: 800,
         height: 600,
         // Set the path of an additional "preload" script that can be used to
         // communicate between node-land and browser-land.
         webPreferences: {
-            preload: path.join(__dirname, "preload.js"),
-            webSecurity: false, //needed to access local files
             nodeIntegration: true,
-            contextIsolation: false,
-            enableRemoteModule: true,
+            contextIsolation: true,
+            preload: path.join(__dirname, "preload.js"),
         },
     });
-
-    mainWindow.ipcRenderer = require('electron').ipcRenderer;
 
     mainWindow.removeMenu();
 
