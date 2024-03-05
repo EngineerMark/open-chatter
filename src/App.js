@@ -9,6 +9,8 @@ import { useEffect, useState } from "react";
 import { GetAppSettings, GetGraphicsData, GetMemoryData } from "./Misc/Helpers";
 import PageLoader from "./Components/PageLoader";
 import Header from "./Components/Header";
+import RouteCharacters from "./Routes/RouteCharacters";
+import RouteCharacterEditor from "./Routes/RouteCharacterEditor";
 
 const darkTheme = createTheme({
   palette: {
@@ -85,6 +87,9 @@ function App() {
                 <Routes>
                   <Route path="/" element={<RouteHome />} />
                   <Route path="/settings" element={<RouteSettings appData={appData} />} />
+                  <Route path="/characters" element={<RouteCharacters />} />
+                  {/* editor may contain ID in the url */}
+                  <Route path="/editor/:id?" element={<RouteCharacterEditor />} />
                 </Routes>
               </HashRouter>
             </Box>

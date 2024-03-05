@@ -49,7 +49,7 @@ function Sidenav(props) {
                     {
                         NavItems.map((navItem, index) => {
                             return <>
-                                <ListItem key={index}>
+                                <ListItem key={'sidenav_' + navItem.name}>
                                     <ListItemButton onClick={() => {
                                         Navigate(navItem.path);
                                     }}>

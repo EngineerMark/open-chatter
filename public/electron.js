@@ -8,16 +8,17 @@ remoteMain.initialize();
 // Create the native browser window.
 function createWindow() {
     const mainWindow = new BrowserWindow({
-        width: 800,
-        height: 600,
-        minWidth: 800,
-        minHeight: 600,
+        width: 1280,
+        height: 720,
+        minWidth: 1280,
+        minHeight: 720,
         // Set the path of an additional "preload" script that can be used to
         // communicate between node-land and browser-land.
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: true,
             enableRemoteModule: true,
+            webSecurity: false,
             preload: path.join(__dirname, "preload.js"),
         },
     });
