@@ -4,13 +4,14 @@ const { dialog, app } = remote;
 const si = require('systeminformation');
 const path = require('node:path');
 const fs = require('fs');
+const { parseMetadata, fileTypeIntToString, estimateRamUsage } = require("./gguf");
 
 //settings etc live here
 const app_data_path = process.env.APPDATA || (process.platform == 'darwin' ? process.env.HOME + '/Library/Preferences' : process.env.HOME + "/.local/share");
 
 const default_settings = {
     "model_directory": "", //if no, the default is in appdata
-    "kobaldcpp_path": "",
+    "koboldcpp_path": "",
     "selected_gpu": 0,
     "context_size": 4096,
 };
@@ -23,7 +24,9 @@ contextBridge.exposeInMainWorld("electron", {
     saveSettings: saveSettings,
 
     promptForDirectory: promptForDirectory,
-    promptForFile: promptForFile
+    promptForFile: promptForFile,
+
+    getAllModels: getAllModels,
 });
 
 function getAppDataPath() {
@@ -86,4 +89,68 @@ async function promptForFile() {
         return null;
     }
     return result.filePaths[0];
+}
+
+async function getAllModels() {
+    const settings = getSettings();
+    const model_directory = settings.model_directory;
+    if (!model_directory) {
+        return [];
+    }
+
+    let files = fs.readdirSync(model_directory);
+    //only .gguf files
+    files = files.filter(file => file.endsWith(".gguf"));
+
+    let modelData = [];
+
+    for (const file of files) {
+        const model = {};
+        model.name = file;
+        model.size = fs.statSync(path.join(model_directory, file)).size;
+
+        //check for cached metadata
+        let metadata = await getModelCachedMetadata(model);
+
+        if(!metadata){
+            metadata = await parseMetadata(path.join(model_directory, file));
+            await setModelCachedMetadata(model, metadata);
+        }
+
+        model.metadata = metadata;
+        model.fileType = fileTypeIntToString(metadata.general.file_type);
+
+        estimateRamUsage(model);
+
+        modelData.push(model);
+    }
+
+    return modelData;
+}
+
+async function getModelCachedMetadata(model) {
+    const settings = getSettings();
+    const model_directory = settings.model_directory;
+    if (!model_directory) {
+        return null;
+    }
+
+    const metadata_path = path.join(model_directory, model.name + ".metadata.json");
+    if (!fs.existsSync(metadata_path)) {
+        return null;
+    }
+
+    const metadata = fs.readFileSync(metadata_path, 'utf-8');
+    return JSON.parse(metadata);
+}
+
+async function setModelCachedMetadata(model, metadata) {
+    const settings = getSettings();
+    const model_directory = settings.model_directory;
+    if (!model_directory) {
+        return null;
+    }
+
+    const metadata_path = path.join(model_directory, model.name + ".metadata.json");
+    fs.writeFileSync(metadata_path, JSON.stringify(metadata, null, 4));
 }

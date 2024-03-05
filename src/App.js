@@ -7,6 +7,7 @@ import { ToastContainer } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 import { useEffect, useState } from "react";
 import { GetAppSettings, GetGraphicsData, GetMemoryData } from "./Misc/Helpers";
+import RouteModels from "./Routes/RouteModels";
 
 const darkTheme = createTheme({
   palette: {
@@ -78,6 +79,7 @@ function App() {
                 <ToastContainer />
                 <Routes>
                   <Route path="/" element={<RouteHome />} />
+                  <Route path="/models" element={<RouteModels />} />
                   <Route path="/settings" element={<RouteSettings appData={appData} />} />
                 </Routes>
               </HashRouter>

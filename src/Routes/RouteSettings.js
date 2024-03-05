@@ -15,7 +15,7 @@ function RouteSettings(props) {
         const _settings = GetAppSettings();
         setAppSettings(_settings);
         setModelDirectory(_settings.model_directory || null);
-        setkoboldcppFile(_settings.kobaldcpp_path || null);
+        setkoboldcppFile(_settings.koboldcpp_path || null);
         setSelectedGPU(_settings.selected_gpu || 0);
         setContextSize(_settings.context_size || 4096);
     }, []);
@@ -24,7 +24,7 @@ function RouteSettings(props) {
         //save settings
         let _settings = appSettings;
         _settings.model_directory = modelDirectory;
-        _settings.kobaldcpp_path = koboldcppFile;
+        _settings.koboldcpp_path = koboldcppFile;
         _settings.selected_gpu = selectedGPU;
         _settings.context_size = contextSize;
         SaveAppSettings(_settings);
