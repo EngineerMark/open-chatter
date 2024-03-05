@@ -24,7 +24,7 @@ function Header(props) {
                         API: <span style={{ color: props.systemStats?.isApiActive ? theme.palette.success.main : theme.palette.error.main }}>{props.systemStats?.isApiActive ? "Active" : "Inactive"}</span>
                     </Typography>
                     <Typography sx={{ fontSize: 12 }}>
-                        Model: {props.systemStats?.activeApiModel.model_name ?? 'None'}
+                        Model: {props.systemStats?.activeApiModel?.model_name ?? 'None'}
                     </Typography>
                 </Box>
             </Toolbar>

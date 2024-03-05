@@ -40,7 +40,7 @@ function RouteCharacters() {
                             }}>
                             <CardContent>
                                 {/* large + in the center */}
-                                <Typography variant="h3" align="center">
+                                <Typography variant="h3" align="center" sx={{ opacity: 0.5 }}>
                                     +
                                 </Typography>
                             </CardContent>

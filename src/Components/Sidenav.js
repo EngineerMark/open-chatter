@@ -1,17 +1,22 @@
-import { Box, Button, Chip, Divider, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Toolbar, Typography, useTheme } from "@mui/material";
+import { Box, Button, Chip, Divider, Drawer, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Stack, Toolbar, Tooltip, Typography, useTheme } from "@mui/material";
 import HomeIcon from '@mui/icons-material/Home';
 import PeopleIcon from '@mui/icons-material/People';
 import SettingsIcon from '@mui/icons-material/Settings';
-import StorageIcon from '@mui/icons-material/Storage';
+import ChatIcon from '@mui/icons-material/Chat';
 import { ConvertToReadableSize, Navigate } from "../Misc/Helpers";
 
-const drawerWidth = 240;
+const drawerWidth = 170;
 
 const NavItems = [
     {
         name: "Home",
         icon: <HomeIcon />,
         path: "/"
+    },
+    {
+        name: "Chats",
+        icon: <ChatIcon />,
+        path: "/chat"
     },
     {
         name: "Characters",
@@ -45,26 +50,43 @@ function Sidenav(props) {
                 anchor="left"
                 open={true}
             >
-                <List>
-                    {
-                        NavItems.map((navItem, index) => {
-                            return <>
-                                <ListItem key={'sidenav_' + navItem.name}>
-                                    <ListItemButton onClick={() => {
+                <Box sx={{ m: 1 }}>
+                    <Stack>
+                        {
+                            NavItems.map((navItem, index) => {
+                                return <>
+                                    <Button variant="text" size='large' fullWidth startIcon={navItem.icon} onClick={() => {
                                         Navigate(navItem.path);
                                     }}>
-                                        <ListItemIcon>
-                                            {
-                                                navItem.icon
-                                            }
-                                        </ListItemIcon>
-                                        <ListItemText primary={navItem.name} />
-                                    </ListItemButton>
-                                </ListItem>
-                            </>
-                        })
-                    }
-                </List>
+                                        {navItem.name}
+                                    </Button>
+                                    {/* <IconButton size='large' onClick={() => {
+                                        Navigate(navItem.path);
+                                    }}>
+                                        {
+                                            navItem.icon
+                                        }
+                                    </IconButton> */}
+                                    {/* <ListItem key={'sidenav_' + navItem.name}>
+                                    <Tooltip title={navItem.name} placement="right">
+                                        <ListItemButton
+                                            selected={window.location.pathname.includes(navItem.path)}
+                                            onClick={() => {
+                                                Navigate(navItem.path);
+                                            }}>
+                                            <ListItemIcon>
+                                                {
+                                                    navItem.icon
+                                                }
+                                            </ListItemIcon>
+                                        </ListItemButton>
+                                    </Tooltip>
+                                </ListItem> */}
+                                </>
+                            })
+                        }
+                    </Stack>
+                </Box>
             </Drawer>
         </Box>
     </>
