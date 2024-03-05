@@ -4,16 +4,14 @@ const { dialog, app } = remote;
 const si = require('systeminformation');
 const path = require('node:path');
 const fs = require('fs');
-const { parseMetadata, fileTypeIntToString, estimateRamUsage } = require("./gguf");
+const { openaiValidate, openaiGetActiveModel } = require("./openai");
 
 //settings etc live here
 const app_data_path = process.env.APPDATA || (process.platform == 'darwin' ? process.env.HOME + '/Library/Preferences' : process.env.HOME + "/.local/share");
 
 const default_settings = {
-    "model_directory": "", //if no, the default is in appdata
-    "koboldcpp_path": "",
-    "selected_gpu": 0,
-    "context_size": 4096,
+    "openai_api": "",
+    "openai_api_key": ""
 };
 
 contextBridge.exposeInMainWorld("electron", {
@@ -23,10 +21,8 @@ contextBridge.exposeInMainWorld("electron", {
     getSettings: getSettings,
     saveSettings: saveSettings,
 
-    promptForDirectory: promptForDirectory,
-    promptForFile: promptForFile,
-
-    getAllModels: getAllModels,
+    getAPIStatus: getAPIStatus,
+    getActiveModelName: getActiveModelName
 });
 
 function getAppDataPath() {
@@ -74,83 +70,24 @@ async function getMemoryData() {
     return data;
 }
 
-async function promptForDirectory() {
-    const result = await dialog.showOpenDialog({ properties: ['openDirectory'] });
-    if (result.canceled) {
-        return null;
-    }
-    return result.filePaths[0];
-}
-
-async function promptForFile() {
-    const result = await dialog.showOpenDialog({ properties: ['openFile'] });
-
-    if (result.canceled) {
-        return null;
-    }
-    return result.filePaths[0];
-}
-
-async function getAllModels() {
+async function getAPIStatus(){
+    //get settings
     const settings = getSettings();
-    const model_directory = settings.model_directory;
-    if (!model_directory) {
-        return [];
+    if(settings.openai_api === ""){
+        return false;
     }
 
-    let files = fs.readdirSync(model_directory);
-    //only .gguf files
-    files = files.filter(file => file.endsWith(".gguf"));
-
-    let modelData = [];
-
-    for (const file of files) {
-        const model = {};
-        model.name = file;
-        model.size = fs.statSync(path.join(model_directory, file)).size;
-
-        //check for cached metadata
-        let metadata = await getModelCachedMetadata(model);
-
-        if(!metadata){
-            metadata = await parseMetadata(path.join(model_directory, file));
-            await setModelCachedMetadata(model, metadata);
-        }
-
-        model.metadata = metadata;
-        model.fileType = fileTypeIntToString(metadata.general.file_type);
-
-        estimateRamUsage(model);
-
-        modelData.push(model);
-    }
-
-    return modelData;
+    const status = await openaiValidate(settings.openai_api);
+    return status;
 }
 
-async function getModelCachedMetadata(model) {
+async function getActiveModelName(){
+    //get settings
     const settings = getSettings();
-    const model_directory = settings.model_directory;
-    if (!model_directory) {
-        return null;
+    if(settings.openai_api === ""){
+        return false;
     }
 
-    const metadata_path = path.join(model_directory, model.name + ".metadata.json");
-    if (!fs.existsSync(metadata_path)) {
-        return null;
-    }
-
-    const metadata = fs.readFileSync(metadata_path, 'utf-8');
-    return JSON.parse(metadata);
-}
-
-async function setModelCachedMetadata(model, metadata) {
-    const settings = getSettings();
-    const model_directory = settings.model_directory;
-    if (!model_directory) {
-        return null;
-    }
-
-    const metadata_path = path.join(model_directory, model.name + ".metadata.json");
-    fs.writeFileSync(metadata_path, JSON.stringify(metadata, null, 4));
+    const model = await openaiGetActiveModel(settings.openai_api);
+    return model;
 }

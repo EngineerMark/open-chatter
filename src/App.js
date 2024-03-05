@@ -1,4 +1,4 @@
-import { Box, CssBaseline, ThemeProvider, createTheme } from "@mui/material";
+import { Box, CssBaseline, ThemeProvider, createTheme, useTheme } from "@mui/material";
 import { HashRouter, Route, Routes } from "react-router-dom";
 import RouteHome from "./Routes/RouteHome";
 import Sidenav from "./Components/Sidenav";
@@ -7,7 +7,8 @@ import { ToastContainer } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 import { useEffect, useState } from "react";
 import { GetAppSettings, GetGraphicsData, GetMemoryData } from "./Misc/Helpers";
-import RouteModels from "./Routes/RouteModels";
+import PageLoader from "./Components/PageLoader";
+import Header from "./Components/Header";
 
 const darkTheme = createTheme({
   palette: {
@@ -16,6 +17,7 @@ const darkTheme = createTheme({
 });
 
 function App() {
+  const theme = useTheme();
   const [appData, setAppData] = useState(null);
   const [systemStats, setSystemStats] = useState(null);
 
@@ -33,8 +35,6 @@ function App() {
         console.error(e);
       }
 
-      console.log(_appData);
-
       setAppData(_appData);
     })();
   }, []);
@@ -43,8 +43,10 @@ function App() {
   useEffect(() => {
     const interval = setInterval(async () => {
       let systemStats = {};
-      try{
+      try {
         const gpuData = await GetGraphicsData();
+        const isApiActive = await window.electron.getAPIStatus();
+        const activeApiModel = await window.electron.getActiveModelName();
         const total_vram = gpuData.reduce((acc, gpu) => acc + gpu.memoryTotal, 0);
         const total_vram_used = gpuData.reduce((acc, gpu) => acc + gpu.memoryUsed, 0);
         const total_ram = appData.memData.total;
@@ -54,10 +56,12 @@ function App() {
           total_vram: total_vram,
           total_vram_used: total_vram_used,
           total_ram: total_ram,
-          total_ram_used: total_ram_used
+          total_ram_used: total_ram_used,
+          isApiActive: isApiActive,
+          activeApiModel: activeApiModel
         };
       }
-      catch(e){
+      catch (e) {
         console.error(e);
       }
 
@@ -69,29 +73,30 @@ function App() {
 
   return (
     <ThemeProvider theme={darkTheme}>
-      <Box sx={{ display: 'flex', width: '100%' }}>
-        <CssBaseline />
-        {
-          appData ? <>
+      <CssBaseline />
+      {
+        appData ? <>
+          <Box sx={{ display: 'flex' }}>
+            <Header systemStats={systemStats} />
             <Sidenav systemStats={systemStats} />
-            <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
+            <Box component="main" sx={{ flexGrow: 1, p: 3, mt: 5 }}>
               <HashRouter future={{ v7_startTransition: true }}>
                 <ToastContainer />
                 <Routes>
                   <Route path="/" element={<RouteHome />} />
-                  <Route path="/models" element={<RouteModels />} />
                   <Route path="/settings" element={<RouteSettings appData={appData} />} />
                 </Routes>
               </HashRouter>
             </Box>
-          </> : <>
-            {/* loading app, spinner in center of screen */}
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+          </Box>
+        </> : <>
+          {/* loading app, spinner in center of screen */}
+          {/* <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
               <h1>Loading...</h1>
-            </Box>
-          </>
-        }
-      </Box>
+            </Box> */}
+          <PageLoader open={true} />
+        </>
+      }
     </ThemeProvider>
   );
 }

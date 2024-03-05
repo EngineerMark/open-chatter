@@ -1,3 +1,4 @@
+import { Typography } from "@mui/material";
 import { toast } from "react-toastify";
 
 export const Navigate = (path) => {
@@ -5,9 +6,15 @@ export const Navigate = (path) => {
 }
 
 export const ShowNotification = (title, message, severity) => {
-    toast(message, {
+    const toastRender = () => (
+        <>
+            <Typography variant="h6">{title}</Typography>
+            <Typography variant="body1">{message}</Typography>
+        </>
+    )
+    toast[severity](toastRender, {
         "position": "top-right",
-        "theme": "dark"
+        "theme": "dark",
     });
 };
 
@@ -58,4 +65,17 @@ export const ConvertToReadableSize = (size, initialType) => {
         type = types[types.indexOf(type) + 1];
     }
     return size.toFixed(2) + " " + type;
+}
+
+export const GetRamSizeColor = (size) => {
+    //<8gb success
+    //8-32gb warning
+    //32+gb error
+    if (size < 16) {
+        return "success"
+    } else if (size >= 16 && size < 32) {
+        return "warning"
+    } else {
+        return "error"
+    }
 }
