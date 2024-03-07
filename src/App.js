@@ -11,6 +11,7 @@ import PageLoader from "./Components/PageLoader";
 import Header from "./Components/Header";
 import RouteCharacters from "./Routes/RouteCharacters";
 import RouteCharacterEditor from "./Routes/RouteCharacterEditor";
+import RouteChat from "./Routes/RouteChat";
 
 const darkTheme = createTheme({
   palette: {
@@ -75,22 +76,25 @@ function App() {
 
   return (
     <ThemeProvider theme={darkTheme}>
-      <CssBaseline />
+      <CssBaseline enableColorScheme />
       {
         appData ? <>
-          <Box sx={{ display: 'flex' }}>
+          <Box sx={{ display: 'flex', height: '100%' }}>
             <Header systemStats={systemStats} />
             <Sidenav systemStats={systemStats} />
-            <Box component="main" sx={{ flexGrow: 1, p: 3, mt: 5 }}>
+            {/* the page should fill the entire height */}
+            <Box sx={{ flexGrow: 1, p: 3, mt: 5 }}>
               <HashRouter future={{ v7_startTransition: true }}>
                 <ToastContainer />
-                <Routes>
-                  <Route path="/" element={<RouteHome />} />
-                  <Route path="/settings" element={<RouteSettings appData={appData} />} />
-                  <Route path="/characters" element={<RouteCharacters />} />
-                  {/* editor may contain ID in the url */}
-                  <Route path="/editor/:id?" element={<RouteCharacterEditor />} />
-                </Routes>
+                <Box sx={{ height: '100%' }}>
+                  <Routes>
+                    <Route path="/" element={<RouteHome />} />
+                    <Route path="/settings" element={<RouteSettings appData={appData} />} />
+                    <Route path="/characters" element={<RouteCharacters />} />
+                    <Route path="/editor/:id?" element={<RouteCharacterEditor />} />
+                    <Route path="/chat/:id?" element={<RouteChat />} />
+                  </Routes>
+                </Box>
               </HashRouter>
             </Box>
           </Box>
