@@ -1,4 +1,4 @@
-const { contextBridge } = require("electron");
+const { contextBridge, ipcRenderer } = require("electron");
 const remote = require('@electron/remote');
 const { dialog, app } = remote;
 const si = require('systeminformation');
@@ -7,6 +7,7 @@ const fs = require('fs');
 const { openaiValidate, openaiGetActiveModel } = require("./openai");
 const { v1: uuidv1, v4: uuidv4, } = require('uuid');
 const { writeCharacter, readCharacter } = require("./charactercard");
+const { loadChatList, loadChat, createChat, sendMessage, deleteMessage, editMessage } = require("./chat");
 
 //settings etc live here
 const app_data_path = process.env.APPDATA || (process.platform == 'darwin' ? process.env.HOME + '/Library/Preferences' : process.env.HOME + "/.local/share");
@@ -16,22 +17,34 @@ const default_settings = {
     "openai_api_key": ""
 };
 
-contextBridge.exposeInMainWorld("electron", {
+const funcList = {
     getGraphicsCards: getGraphicsCards,
     getMemoryData: getMemoryData,
-
+    
     getSettings: getSettings,
     saveSettings: saveSettings,
-
+    
     getAPIStatus: getAPIStatus,
     getActiveModelName: getActiveModelName,
-
+    
     getSelectFile: getSelectFile,
-
+    
     createOrUpdateCharacter: createOrUpdateCharacter,
     loadCharacter: loadCharacter,
-    getCharacters: getCharacters
-});
+    getCharacters: getCharacters,
+    
+    getChatList: loadChatList,
+    getChat: loadChat,
+    createChat: createChat,
+    sendMessage: sendMessage,
+    deleteMessage: deleteMessage,
+    editMessage: editMessage,
+}
+
+// contextBridge.exposeInMainWorld("electron", {
+// });
+
+window.electron = funcList;
 
 function getAppDataPath() {
     // const _path = path.join(app_data_path, "open-chatter");

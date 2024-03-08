@@ -94,9 +94,6 @@ function CharacterCard(props) {
                     <Button variant="outlined" color="primary" size='small' onClick={() => {
                         Navigate("/editor/" + props.character.id);
                     }}>Edit</Button>
-                    <Button variant="outlined" color="secondary" size='small' onClick={() => {
-                        Navigate("/chat/" + props.character.id);
-                    }}>Chat</Button>
                 </Stack>
             </Box>
             {/* make sure to vertically center the text */}

@@ -16,7 +16,7 @@ function createWindow() {
         // communicate between node-land and browser-land.
         webPreferences: {
             nodeIntegration: true,
-            contextIsolation: true,
+            contextIsolation: false,
             enableRemoteModule: true,
             webSecurity: false,
             preload: path.join(__dirname, "preload.js"),
