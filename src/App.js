@@ -6,12 +6,13 @@ import RouteSettings from "./Routes/RouteSettings";
 import { ToastContainer } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 import { useEffect, useState } from "react";
-import { GetAppSettings, GetGraphicsData, GetMemoryData } from "./Misc/Helpers";
+import { GetAppSettings, GetGraphicsData, GetMemoryData, ShowNotification } from "./Misc/Helpers";
 import PageLoader from "./Components/PageLoader";
 import Header from "./Components/Header";
 import RouteCharacters from "./Routes/RouteCharacters";
 import RouteCharacterEditor from "./Routes/RouteCharacterEditor";
 import RouteChat from "./Routes/RouteChat";
+const { ipcRenderer } = window.require('electron');
 
 const darkTheme = createTheme({
   palette: {
@@ -23,6 +24,7 @@ function App() {
   const theme = useTheme();
   const [appData, setAppData] = useState(null);
   const [systemStats, setSystemStats] = useState(null);
+  const [appState, setAppState] = useState({});
 
   useEffect(() => {
     (async () => {
@@ -40,6 +42,17 @@ function App() {
 
       setAppData(_appData);
     })();
+
+    ipcRenderer.on('set-app-state', (event, arg) => {
+      //reload chat list
+      const _state = arg; //key value pair
+      const _appState = { ...appState, ..._state };
+      setAppState(_appState);
+    });
+
+    ipcRenderer.on('sendError', (event, arg) => {
+      ShowNotification("Error", arg, "error");
+    });
   }, []);
 
   //system stats updater, every 5 or so seconds
@@ -92,7 +105,7 @@ function App() {
                     <Route path="/settings" element={<RouteSettings appData={appData} />} />
                     <Route path="/characters" element={<RouteCharacters />} />
                     <Route path="/editor/:id?" element={<RouteCharacterEditor />} />
-                    <Route path="/chat/:id?" element={<RouteChat />} />
+                    <Route path="/chat/:id?" element={<RouteChat appState={appState} />} />
                   </Routes>
                 </Box>
               </HashRouter>

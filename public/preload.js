@@ -4,10 +4,10 @@ const { dialog, app } = remote;
 const si = require('systeminformation');
 const path = require('node:path');
 const fs = require('fs');
-const { openaiValidate, openaiGetActiveModel } = require("./openai");
+const { openAiValidate, openAiGetActiveModel, openAiGetPrompt, openAiRequestCompletion } = require("./openai");
 const { v1: uuidv1, v4: uuidv4, } = require('uuid');
 const { writeCharacter, readCharacter } = require("./charactercard");
-const { loadChatList, loadChat, createChat, sendMessage, deleteMessage, editMessage } = require("./chat");
+const { loadChatList, loadChat, createChat, sendMessage, deleteMessage, editMessage, deleteChat, generateAIResponse } = require("./chat");
 
 //settings etc live here
 const app_data_path = process.env.APPDATA || (process.platform == 'darwin' ? process.env.HOME + '/Library/Preferences' : process.env.HOME + "/.local/share");
@@ -32,6 +32,8 @@ const funcList = {
     createOrUpdateCharacter: createOrUpdateCharacter,
     loadCharacter: loadCharacter,
     getCharacters: getCharacters,
+    getCharacter: loadCharacter,
+    getOpenAIServer: getOpenAIServer,
     
     getChatList: loadChatList,
     getChat: loadChat,
@@ -39,6 +41,11 @@ const funcList = {
     sendMessage: sendMessage,
     deleteMessage: deleteMessage,
     editMessage: editMessage,
+    deleteChat: deleteChat,
+
+    openAiGetPrompt: openAiGetPrompt,
+    openAiRequestCompletion: openAiRequestCompletion,
+    generateAIResponse: generateAIResponse,
 }
 
 // contextBridge.exposeInMainWorld("electron", {
@@ -75,6 +82,11 @@ function getSettings() {
     return default_settings_clone;
 }
 
+async function getOpenAIServer() {
+    const settings = getSettings();
+    return settings.openai_api;
+}
+
 function saveSettings(settings) {
     const settings_path = path.join(getAppDataPath(), "settings.json");
     fs.writeFileSync(settings_path, JSON.stringify(settings, null, 4));
@@ -98,7 +110,7 @@ async function getAPIStatus() {
         return false;
     }
 
-    const status = await openaiValidate(settings.openai_api);
+    const status = await openAiValidate(settings.openai_api);
     return status;
 }
 
@@ -109,7 +121,7 @@ async function getActiveModelName() {
         return false;
     }
 
-    const model = await openaiGetActiveModel(settings.openai_api);
+    const model = await openAiGetActiveModel(settings.openai_api);
     return model;
 }
 

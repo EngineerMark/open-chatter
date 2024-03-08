@@ -3,6 +3,7 @@ const { dialog, app, ipcMain, BrowserWindow } = remote;
 const path = require('node:path');
 const fs = require('fs');
 const { v1: uuidv1, v4: uuidv4, } = require('uuid');
+const { openAiGetPrompt, openAiGetActiveModel } = require('./openai');
 
 async function loadChatList() {
     const chat_folder = path.join(app.getPath('userData'), 'chats');
@@ -26,7 +27,7 @@ async function loadChatList() {
     return chat_list;
 }
 
-async function createChat(character_ids){
+async function createChat(character_ids) {
     const new_chat_data = {
         id: uuidv4(),
         title: "New chat",
@@ -48,7 +49,7 @@ async function loadChat(id) {
 
 async function saveChat(id, chat_data) {
     const file_path = path.join(app.getPath('userData'), 'chats', id + ".json");
-    
+
     //if exists, empty original file
     if (fs.existsSync(file_path)) {
         fs.unlinkSync(file_path);
@@ -58,14 +59,44 @@ async function saveChat(id, chat_data) {
     fs.writeFileSync(file_path, JSON.stringify(chat_data));
 }
 
-async function sendMessage(chat_id, message_data, is_ai_message = false){
-    const chat = await loadChat(chat_id);
-    chat.messages.push(message_data);
-    await saveChat(chat_id, chat);
+function createMessageObject(character_id, message_content) {
+    return {
+        character_id: character_id,
+        message: message_content,
+        message_id: uuidv4(),
+        creation_date: new Date().toISOString()
+    }
+}
 
-    if(is_ai_message){
+async function sendMessage(chat_id, character_id, message_content, is_ai_message = false) {
+    const chat = await loadChat(chat_id);
+    chat.messages.push(createMessageObject(character_id, message_content));
+    await saveChat(chat_id, chat);
+}
+
+async function generateAIResponse(chat_id, character_id) {
+    // console.log('generating AI response');
+    BrowserWindow.getAllWindows()[0].webContents.send('set-app-state', {
+        'ai-generating': {
+            chat_id: chat_id,
+            character_id: character_id
+        }
+    });
+
+    const response = await window.electron.openAiRequestCompletion(chat_id, character_id);
+
+    if(response?.choices?.length === 0){
+        console.error('AI response failed');
+        BrowserWindow.getAllWindows()[0].webContents.send('sendError', 'AI response failed');
+    }else{
+        const message = response.choices[0].text.trim();
+        await sendMessage(chat_id, character_id, message, true);
+        //wait 1 second
+        await new Promise(resolve => setTimeout(resolve, 1000));
         BrowserWindow.getAllWindows()[0].webContents.send('ai-update-chat', chat_id); //chat_id so the frontend doesnt update if another chat is open
     }
+
+    BrowserWindow.getAllWindows()[0].webContents.send('set-app-state', { 'ai-generating': null });
 }
 
 async function deleteMessage(chat_id, message_id) {
@@ -83,7 +114,8 @@ async function editMessage(chat_id, message_id, message_content) {
 }
 
 async function deleteChat(id) {
-
+    const file_path = path.join(app.getPath('userData'), 'chats', id + ".json");
+    fs.unlinkSync(file_path);
 }
 
 module.exports = {
@@ -94,5 +126,6 @@ module.exports = {
     createChat,
     sendMessage,
     deleteMessage,
-    editMessage
+    editMessage,
+    generateAIResponse
 }

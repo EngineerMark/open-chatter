@@ -1,4 +1,4 @@
-import { Avatar, Box, Button, Chip, Dialog, DialogContent, DialogContentText, DialogTitle, Divider, FilledInput, FormControl, Grid, IconButton, InputAdornment, InputLabel, Link, List, ListItem, ListItemAvatar, ListItemText, Paper, Stack, Typography } from "@mui/material";
+import { Avatar, Box, Button, Chip, Dialog, DialogContent, DialogContentText, DialogTitle, Divider, FilledInput, FormControl, Grid, IconButton, InputAdornment, InputLabel, Link, List, ListItem, ListItemAvatar, ListItemText, Paper, Stack, Tooltip, Typography } from "@mui/material";
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Scrollbar } from "react-scrollbars-custom";
@@ -10,7 +10,8 @@ import PageLoader from "../Components/PageLoader";
 import SendIcon from '@mui/icons-material/Send';
 const { ipcRenderer } = window.require('electron');
 
-const CHAT_SIDEBAR_WIDTH = 240;
+const CHAT_SIDEBAR_LEFT_WIDTH = 240;
+const CHAT_SIDEBAR_RIGHT_WIDTH = 280;
 
 function RouteChat(props) {
     const { id } = useParams();
@@ -36,7 +37,7 @@ function RouteChat(props) {
             ShowNotification("Error", "No chat selected", "error");
             return;
         }
-        const messageResult = await SendMessage(activeChat.id, activeCharacter?.id ?? null, message);
+        await SendMessage(activeChat.id, activeCharacter?.id ?? null, message);
 
         //update the chat
         await loadChat(activeChat.id);
@@ -54,20 +55,39 @@ function RouteChat(props) {
         await loadChat(activeChat.id);
     }
 
+    const requestAiResponse = async (character_id) => {
+        window.electron.generateAIResponse(activeChat.id, character_id);
+    }
+
+    const handleIPCChatUpdateRequest = (event, arg) => {
+        console.log(activeChat);
+        console.log('active: ', activeChat?.id, 'reload: ', arg);
+        const chat_id = arg;
+        if (activeChat && activeChat.id === chat_id) {
+            console.log("reloading chat");
+            loadChat(chat_id);
+        }
+    }
+
     useEffect(() => {
         (async () => {
             //load chat list
             await reloadChatList();
         })();
 
-        ipcRenderer.on('ai-update-chat', (event, arg) => {
-            //reload chat list
-            const chat_id = arg;
-            if (activeChat && activeChat.id === chat_id) {
-                reloadChatList();
-            }
-        });
     }, []);
+    
+    useEffect(()=>{
+        ipcRenderer.on('ai-update-chat', handleIPCChatUpdateRequest);
+    
+        return () => {
+            ipcRenderer.removeListener('ai-update-chat', handleIPCChatUpdateRequest);
+        }
+    });
+
+    useEffect(() => {
+        console.warn("ACTIVE UPDATED: ", activeChat);
+    }, [activeChat]);
 
     useEffect(() => {
         if (activeChat) {
@@ -98,11 +118,14 @@ function RouteChat(props) {
             }
         }} />
         <Box sx={{ display: 'flex', height: '100%' }}>
-            <Box sx={{ width: CHAT_SIDEBAR_WIDTH, flexShrink: 0, height: '100%' }}>
-                <ChatSidebar onNewChat={() => setIsPopupOpen(true)} list={chatList} />
+            <Box sx={{ width: CHAT_SIDEBAR_LEFT_WIDTH, flexShrink: 0, height: '100%' }}>
+                <ChatSidebar loadChat={loadChat} disabled={props.appState['ai-generating'] ?? false} onNewChat={() => setIsPopupOpen(true)} list={chatList} />
             </Box>
             <Box sx={{ flexGrow: 1, ml: 1, height: '100%' }}>
-                <Chat sendMessage={sendMessage} deleteMessage={deleteMessage} onEdit={editMessage} chat={activeChat} />
+                <Chat disabled={props.appState['ai-generating'] ?? false} typing={props.appState['ai-generating'] ?? null} sendMessage={sendMessage} deleteMessage={deleteMessage} onEdit={editMessage} chat={activeChat} />
+            </Box>
+            <Box sx={{ width: CHAT_SIDEBAR_RIGHT_WIDTH, ml: 1, flexShrink: 0, height: '100%' }}>
+                <ChatMemberList disabled={props.appState['ai-generating'] ?? false} requestAiResponse={requestAiResponse} chat={activeChat} />
             </Box>
         </Box>
     </>
@@ -183,7 +206,7 @@ function ChatSidebar(props) {
                     <Typography variant="body1">Chats</Typography>
                     {/* align right */}
                     <Box sx={{ flexGrow: 1 }} />
-                    <Button variant="outlined" size="small" onClick={() => {
+                    <Button disabled={props.disabled} variant="outlined" size="small" onClick={() => {
                         //navigate to character list
                         props.onNewChat?.();
                     }}>New Chat</Button>
@@ -193,7 +216,7 @@ function ChatSidebar(props) {
                     <Stack spacing={1}>
                         {
                             props.list.map((chat, index) => {
-                                return <ChatListItem key={index} chat={chat} />
+                                return <ChatListItem disabled={props.disabled} key={index} chat={chat} loadChat={props.loadChat} />
                             })
                         }
                     </Stack>
@@ -203,10 +226,81 @@ function ChatSidebar(props) {
     </>
 }
 
+function ChatMemberList(props) {
+    const [characters, setCharacters] = useState([]);
+
+    useEffect(() => {
+        (async () => {
+            setCharacters([]);
+            if (!props.chat) {
+                return;
+            }
+
+            const chars = [];
+            for (const char_id of props.chat.characters) {
+                const char = await window.electron.getCharacter(char_id);
+                chars.push(char);
+            }
+            setCharacters(chars);
+        })();
+    }, [props.chat]);
+
+    return <>
+        <Paper sx={{ height: '100%' }}>
+            <Box sx={{ p: 1, display: 'flex', height: '40px' }}>
+                <Typography variant="body1">Members</Typography>
+            </Box>
+            <Divider />
+            <Box sx={{ p: 1, overflowY: 'auto', flexGrow: 1 }}>
+                <List sx={{ width: '100%', bgcolor: 'background.paper' }}>
+                    {
+                        characters.map((char, index) => {
+                            return <ListItem
+                                key={index}
+                                secondaryAction={<IconButton
+                                    disabled={props.disabled}
+                                    edge="end" size="small"
+                                    onClick={() => {
+                                        props.requestAiResponse?.(char.id);
+                                    }}
+                                >
+                                    <Tooltip title="Send message">
+                                        <SendIcon fontSize="inherit" />
+                                    </Tooltip>
+                                </IconButton>}
+                            >
+                                <ListItemAvatar>
+                                    <Avatar src={char.image} />
+                                </ListItemAvatar>
+                                <ListItemText
+                                    primary={char.name}
+                                />
+                                {/* button to the right that triggers a AI chat message */}
+
+                            </ListItem>
+                        })
+                    }
+                </List>
+            </Box>
+        </Paper>
+    </>
+}
+
 function ChatListItem(props) {
     return <>
         <Box sx={{ display: 'flex', p: 1 }}>
-            <Typography variant="body1">{props.chat.title}</Typography>
+            {/* <Typography variant="body1">{props.chat.title}</Typography> */}
+            <Link
+                disabled={props.disabled}
+                component='button'
+                variant="body1"
+                onClick={() => {
+                    //navigate to chat
+                    props.loadChat?.(props.chat.id);
+                }}
+            >
+                {props.chat.title}
+            </Link>
             <Box sx={{ flexGrow: 1 }} />
             <IconButton size="small">
                 <EditIcon fontSize="inherit" />
@@ -222,12 +316,25 @@ function ChatListItem(props) {
 //chat itself
 function Chat(props) {
     const [messageInput, setMessageInput] = useState("");
+    const [typingStatus, setTypingStatus] = useState(null);
 
     const sendMessage = async () => {
         //send message
         props.sendMessage?.(messageInput);
         setMessageInput("");
     }
+
+    useEffect(() => {
+        (async () => {
+            if (props.typing) {
+                const char_id = props.typing.character_id;
+                const char = await window.electron.getCharacter(char_id);
+                setTypingStatus(char);
+            } else {
+                setTypingStatus(null);
+            }
+        })();
+    }, [props.typing]);
 
     return <>
         <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -241,14 +348,20 @@ function Chat(props) {
                         props.chat && props.chat.messages?.length > 0 ?
                             props.chat.messages.map((message, index) => {
                                 return <ListItem sx={{ width: '100%', mb: 1 }} key={index} alignItems="flex-start">
-                                    <ChatMessage key={index} message={message} onDelete={props.deleteMessage} onEdit={props.onEdit} />
+                                    <ChatMessage allowInteraction={!props.disabled} key={index} message={message} onDelete={props.deleteMessage} onEdit={props.onEdit} />
                                 </ListItem>
                             }) : <Typography variant="body1" sx={{ textAlign: 'center' }}>No messages</Typography>
                     }
                 </List>
             </Box>
+            {
+                props.typing ? <Box sx={{ p: 1 }}>
+                    <Typography variant="body2">{typingStatus?.name} is typing...</Typography>
+                </Box> : null
+            }
             <FormControl fullWidth sx={{ pt: 2 }}>
                 <FilledInput
+                    disabled={props.disabled}
                     placeholder="Type a message..."
                     id='chat-message-box-input'
                     value={messageInput}
@@ -260,7 +373,7 @@ function Chat(props) {
                     }}
                     endAdornment={
                         <InputAdornment position="end">
-                            <IconButton edge="end" >
+                            <IconButton disabled={props.disabled} edge="end" >
                                 <SendIcon onClick={() => sendMessage()} />
                             </IconButton>
                         </InputAdornment>
@@ -287,7 +400,12 @@ function ChatMessage(props) {
 
     return <>
         <ListItemAvatar>
-            <Avatar />
+            <Avatar
+                src={character?.image}
+                alt={character?.name}
+                variant={character ? "circular" : "rounded"}
+                sx={{ width: 40, height: 40 }}
+            />
         </ListItemAvatar>
         <ListItemText
             primary={<React.Fragment>
@@ -308,31 +426,37 @@ function ChatMessage(props) {
                             sx={{ display: 'inline' }}
                             color="text.secondary"
                         >
-                            {props.message.time}
+                            {props.message.creation_date}
                         </Typography>
                     </Box>
                     <Box sx={{ flexGrow: 1 }} />
                     <Box>
-                        <Link
-                            component='button'
-                            variant="body1"
-                            onClick={() => {
-                                props.onDelete?.(props.message.message_id);
-                            }}
-                        >
-                            remove
-                        </Link>
-                        <Typography component="span" variant="body2" sx={{ display: 'inline' }} color="text.secondary" > {` • `} </Typography>
-                        <Link
-                            component='button'
-                            variant="body1"
-                            onClick={() => {
-                                setTempEditMessage(props.message.message);
-                                setIsEditMode(true);
-                            }}
-                        >
-                            edit
-                        </Link>
+                        {
+                            props.allowInteraction ? <>
+                                <Link
+                                    disabled={!props.allowInteraction}
+                                    component='button'
+                                    variant="body1"
+                                    onClick={() => {
+                                        props.onDelete?.(props.message.message_id);
+                                    }}
+                                >
+                                    remove
+                                </Link>
+                                <Typography component="span" variant="body2" sx={{ display: 'inline' }} color="text.secondary" > {` • `} </Typography>
+                                <Link
+                                    disabled={!props.allowInteraction}
+                                    component='button'
+                                    variant="body1"
+                                    onClick={() => {
+                                        setTempEditMessage(props.message.message);
+                                        setIsEditMode(true);
+                                    }}
+                                >
+                                    edit
+                                </Link>
+                            </> : null
+                        }
                     </Box>
                 </Box>
             </React.Fragment>}
@@ -348,6 +472,7 @@ function ChatMessage(props) {
                 {
                     isEditMode ? <FormControl fullWidth>
                         <FilledInput
+                            disabled={!props.allowInteraction}
                             value={tempEditMessage}
                             onChange={(e) => setTempEditMessage(e.target.value)}
                             onKeyDown={(e) => {

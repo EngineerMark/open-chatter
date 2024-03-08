@@ -21,16 +21,13 @@ export const LoadChat = async (id) => {
 }
 
 export const SendMessage = async (chat_id, character_id, message, is_user) => {
-    const message_data = {
-        message_id: uuidv4(),
-        character_id: character_id || null, //null is basically "user", they have not selected a character to play as. Requires no additional data /context from the character
-        time: new Date().toISOString(),
-        message: message
-    }
-
-    await window.electron.sendMessage(chat_id, message_data, is_user);
-
-    return message_data;
+    // const message_data = {
+    //     message_id: uuidv4(),
+    //     character_id: character_id || null, //null is basically "user", they have not selected a character to play as. Requires no additional data /context from the character
+    //     time: new Date().toISOString(),
+    //     message: message
+    // }
+    await window.electron.sendMessage(chat_id, character_id, message);
 }
 
 export const DeleteMessage = async (chat_id, message_id) => {

@@ -13,6 +13,7 @@ function RouteCharacterEditor() {
     const [characterImage, setCharacterImage] = useState(null);
     const [characterName, setCharacterName] = useState(null);
     const [characterAge, setCharacterAge] = useState(null);
+    const [characterGender, setCharacterGender] = useState(null);
     const [characterPersonality, setCharacterPersonality] = useState(null);
     const [characterDescription, setCharacterDescription] = useState(null);
     const [isWorking, setIsWorking] = useState(false);
@@ -28,6 +29,7 @@ function RouteCharacterEditor() {
                     setImageFileType('base64');
                     setCharacterName(data.name);
                     setCharacterAge(data.age);
+                    setCharacterGender(data.gender);
                     setCharacterPersonality(data.personality);
                     setCharacterDescription(data.description);
                 }catch(err){
@@ -38,6 +40,7 @@ function RouteCharacterEditor() {
                     setImageFileType(null);
                     setCharacterName(null);
                     setCharacterAge(null);
+                    setCharacterGender(null);
                     setCharacterPersonality(null);
                     setCharacterDescription(null);
                 }
@@ -58,6 +61,7 @@ function RouteCharacterEditor() {
             image: characterImage,
             name: characterName,
             age: characterAge,
+            gender: characterGender,
             personality: characterPersonality,
             description: characterDescription
         }
@@ -97,6 +101,7 @@ function RouteCharacterEditor() {
                         <Stack spacing={2}>
                             <TextField variant='standard' label='Name' value={characterName ?? ''} onChange={(e) => setCharacterName(e.target.value)} />
                             <TextField variant='standard' label='Age' value={characterAge ?? ''} onChange={(e) => setCharacterAge(e.target.value)} />
+                            <TextField variant='standard' label='Gender' value={characterGender ?? ''} onChange={(e) => setCharacterGender(e.target.value)} />
                             <TextField variant='standard' label='Personality' value={characterPersonality ?? ''} onChange={(e) => setCharacterPersonality(e.target.value)} />
                         </Stack>
                     </Box>
