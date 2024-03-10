@@ -79,7 +79,15 @@ function createMessageObject(character_id, message_content, is_ai_message = fals
 async function sendMessage(chat_id, character_id, message_content, is_ai_message = false) {
     const chat = await loadChat(chat_id);
     chat.messages.push(createMessageObject(character_id, message_content, is_ai_message));
+    console.log('message sent by ', character_id);
     await saveChat(chat_id, chat);
+
+    if(!is_ai_message){
+        await window.electron.applyStats({
+            character_id: character_id,
+            is_ai: false,
+        });
+    }
 }
 
 async function generateAIResponse(chat_id, character_id) {
@@ -104,10 +112,10 @@ async function generateAIResponse(chat_id, character_id) {
     }
 
     const response = await window.electron.openAiRequestCompletion(chat_id, character_id, generationData.abortController);
-    if(response?.length === 0){
+    if (response?.length === 0) {
         console.error('AI response failed');
         BrowserWindow.getAllWindows()[0].webContents.send('sendError', 'AI response failed');
-    }else{
+    } else {
         const message = response.trim();
         await sendMessage(chat_id, character_id, message, true);
         //wait 1 second

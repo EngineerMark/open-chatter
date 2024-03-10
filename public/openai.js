@@ -15,7 +15,8 @@ async function openAiApiCall(url, method, data, apikey = null) {
         const response = await axios({
             method: method,
             url: url,
-            body: JSON.stringify(data),
+            // body: JSON.stringify(data),
+            data: data,
         });
         // const response = await axios[method.toLowerCase()](url, data);
 
@@ -37,6 +38,13 @@ async function openAiGetActiveModel(server, apikey = null) {
     // } catch (error) {
     //     return null;
     // }
+}
+
+async function openAiGetTokenCount(server, data) {
+    return (await openAiApiCall(server + 'v1/internal/token-count', 'POST', {
+        text: data
+    }));
+
 }
 
 async function openAiRequestCompletion(chat_id, character_id, abortController) {
@@ -127,17 +135,6 @@ async function openAiRequestCompletion(chat_id, character_id, abortController) {
         stream: stream_result //TODO but difficult
     }
 
-    // const response = await openAiApiCall(url, 'POST', payload, null, onProgress);
-    // stream response to onProgress
-
-    // const response = await axios.post(url, payload, {
-    //     headers: {
-    //         'Content-Type': 'application/json',
-    //         // 'Authorization': 'Bearer ' + window.electron.getOpenAIApiKey()
-    //     },
-    //     signal: abortController.signal,
-    //     responseType: 'stream'
-    // });
     //axios is bugged, cant stream POST requests
 
     const response = await fetch(url, {
@@ -157,18 +154,37 @@ async function openAiRequestCompletion(chat_id, character_id, abortController) {
 
     while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
-        if (value.data === "[DONE]") break;
+        // if (done) break;
+        // if (value.data === "[DONE]") break;
+        if (done || value?.data === "[DONE]") {
+            console.log(value);
 
+            const _prompt = input_prompt;
+            const _response = text;
+
+            const { length: completion_tokens } = await openAiGetTokenCount(server, _response);
+            const { length: prompt_tokens } = await openAiGetTokenCount(server, _prompt);
+            const { model_name: model } = await openAiGetActiveModel(server);
+
+            console.log('model', model);
+
+            const stats = {
+                completion_tokens: completion_tokens,
+                prompt_tokens: prompt_tokens,
+                model: model,
+                character: character_id,
+                is_ai: true
+            }
+
+            await window.electron.applyStats(stats);
+            break;
+        }
         const jsonData = JSON.parse(value.data);
-
+        // console.log(jsonData);
         const newText = text + jsonData.choices[0]?.text;
         text = newText;
 
         BrowserWindow.getAllWindows()[0].webContents.send('ai-streaming', text);
-
-        console.log(value);
-        // yield _newText;
     }
     BrowserWindow.getAllWindows()[0].webContents.send('ai-streaming-finished', '');
 
@@ -178,11 +194,34 @@ async function openAiRequestCompletion(chat_id, character_id, abortController) {
 async function openAiGetPrompt(chat_id, respond_character_id = null) {
     //converts the chat messages to a prompt that AI can understand
     const chat = await window.electron.getChat(chat_id);
-    const characters = [];
+    const character_ids = [];
+    //find all unique characters based on the chat messages (there can be duplicates)
+    for (const message of chat.messages) {
+        if (message.character_id && !character_ids.includes(message.character_id)) {
+            character_ids.push(message.character_id);
+        }
+    }
+
+    //also check the chat's character list
     for (const character_id of chat.characters) {
+        if (!character_ids.includes(character_id)) {
+            character_ids.push(character_id);
+        }
+    }
+
+    const characters = [];
+    for (const character_id of character_ids) {
         const character = await window.electron.getCharacter(character_id);
         characters.push(character);
     }
+
+    // for (const character_id of chat.characters) {
+    //     const character = await window.electron.getCharacter(character_id);
+    //     characters.push(character);
+    // }
+
+    console.log('character ids', character_ids);
+    console.log('responding', respond_character_id);
     const responding_character = characters.find(c => c.id === respond_character_id);
     let prompt = "";
 

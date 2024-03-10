@@ -57,7 +57,7 @@ function RouteChat(props) {
             ShowNotification("Error", "No chat selected", "error");
             return;
         }
-        await SendMessage(activeChat.id, activeCharacter?.id ?? null, message);
+        await SendMessage(activeChat.id, activeCharacter ?? null, message);
 
         //update the chat
         await loadChat(activeChat.id);
@@ -108,6 +108,11 @@ function RouteChat(props) {
 
     useEffect(() => {
         (async () => {
+            const active_char = await window.electron.getSetting('user_character');
+            if(active_char){
+                setActiveCharacter(active_char);
+            }
+
             //load chat list
             await reloadChatList();
         })();
@@ -430,7 +435,7 @@ function Chat(props) {
         if (props.chat && props.chat.messages?.length > 0) {
             const _last = props.chat.messages[props.chat.messages.length - 1];
             setLastMessage(_last);
-            if (_last.character_id) {
+            if (_last.ai) {
                 setCanRegenerate(true);
             }
         } else {

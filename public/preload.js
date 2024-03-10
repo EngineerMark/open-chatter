@@ -17,6 +17,15 @@ const default_settings = {
     "openai_api_key": ""
 };
 
+const default_stats = {
+    total_completion_tokens: 0,
+    total_prompt_tokens: 0,
+    total_user_messages: 0,
+    total_ai_messages: 0,
+    model_stats: {},
+    character_stats: {}
+}
+
 const funcList = {
     getGraphicsCards: getGraphicsCards,
     getMemoryData: getMemoryData,
@@ -24,6 +33,7 @@ const funcList = {
     getSettings: getSettings,
     saveSettings: saveSettings,
     setSetting: setSetting,
+    getSetting: getSetting,
     
     getAPIStatus: getAPIStatus,
     getActiveModelName: getActiveModelName,
@@ -47,6 +57,10 @@ const funcList = {
     openAiGetPrompt: openAiGetPrompt,
     openAiRequestCompletion: openAiRequestCompletion,
     generateAIResponse: generateAIResponse,
+
+    getStats: getStats,
+    saveStats: saveStats,
+    applyStats: applyStats,
 }
 
 // contextBridge.exposeInMainWorld("electron", {
@@ -98,6 +112,69 @@ function setSetting(key, value) {
     settings[key] = value;
     saveSettings(settings);
 }
+
+function getSetting(key) {
+    const settings = getSettings();
+    return settings[key];
+}
+
+function getStats() {
+    const stats_path = path.join(getAppDataPath(), "stats.json");
+    if (!fs.existsSync(stats_path)) {
+        fs.writeFileSync(stats_path, JSON.stringify(default_stats, null, 4));
+    }
+
+    let stats = fs.readFileSync(stats_path, 'utf-8');
+    stats = JSON.parse(stats);
+    return stats;
+}
+
+function saveStats(stats) {
+    const stats_path = path.join(getAppDataPath(), "stats.json");
+    fs.writeFileSync(stats_path, JSON.stringify(stats, null, 4));
+}
+
+function applyStats(data) {
+    const stats = getStats();
+
+    if(data.prompt_tokens){ stats.total_prompt_tokens += data.prompt_tokens; }
+    if(data.completion_tokens){ stats.total_completion_tokens += data.completion_tokens; }
+    if(data.is_ai){ stats.total_ai_messages += 1; } else { stats.total_user_messages += 1; }
+
+    if(data.model){
+        if(!stats.model_stats[data.model]){
+            stats.model_stats[data.model] = {
+                total_completion_tokens: 0,
+                total_prompt_tokens: 0,
+                total_user_messages: 0,
+                total_ai_messages: 0
+            }
+        }
+
+        if(data.prompt_tokens){ stats.model_stats[data.model].total_prompt_tokens += data.prompt_tokens; }
+        if(data.completion_tokens){ stats.model_stats[data.model].total_completion_tokens += data.completion_tokens; }
+        if(data.is_ai){ stats.model_stats[data.model].total_ai_messages += 1; } else { stats.model_stats[data.model].total_user_messages += 1; }
+    }
+
+    if(data.character){
+        if(!stats.character_stats[data.character]){
+            stats.character_stats[data.character] = {
+                total_completion_tokens: 0,
+                total_prompt_tokens: 0,
+                total_user_messages: 0,
+                total_ai_messages: 0
+            }
+        }
+
+        if(data.prompt_tokens){ stats.character_stats[data.character].total_prompt_tokens += data.prompt_tokens; }
+        if(data.completion_tokens){ stats.character_stats[data.character].total_completion_tokens += data.completion_tokens; }
+        if(data.is_ai){ stats.character_stats[data.character].total_ai_messages += 1; } else { stats.character_stats[data.character].total_user_messages += 1; }
+    }
+
+    saveStats(stats);
+    console.log(stats);
+}
+
 
 async function getGraphicsCards() {
     const data = await si.graphics();

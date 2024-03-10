@@ -8,6 +8,13 @@ const CHARA_CARD_HEIGHT = 130;
 function RouteCharacters() {
     const [characters, setCharacters] = useState([]);
     const [isWorking, setIsWorking] = useState(false);
+    const [userCharacter, setUserCharacter] = useState(null);
+
+    const _setUserCharacter = (char_id) => {
+        console.log("Setting user character", char_id);
+        window.electron.setSetting("user_character", char_id);
+        setUserCharacter(char_id);
+    }
 
     useEffect(() => {
         //load character files
@@ -16,6 +23,12 @@ function RouteCharacters() {
             const chars = await window.electron.getCharacters();
             console.log(chars);
             setCharacters(chars);
+
+            const userChar = await window.electron.getSetting("user_character");
+            if (userChar) {
+                setUserCharacter(userChar);
+            }
+
             setIsWorking(false);
         })();
         //TODO
@@ -51,7 +64,7 @@ function RouteCharacters() {
                     characters && characters.length > 0 ? characters.map((char, index) => {
                         // background image filling the entire card, nearest neighbor scaling
                         return <Grid item xs={12}>
-                            <CharacterCard height={CHARA_CARD_HEIGHT} character={char} />
+                            <CharacterCard userCharacter={userCharacter} setUserCharacter={_setUserCharacter} height={CHARA_CARD_HEIGHT} character={char} />
                         </Grid>
                     }) : null
                 }
@@ -68,7 +81,8 @@ function CharacterCard(props) {
                     <Button variant="outlined" color="primary" size='small' onClick={() => {
                         Navigate("/editor/" + props.character.id);
                     }}>Edit</Button>
-                    <Button variant="outlined" color="primary" size='small' onClick={() => {
+                    <Button variant={props?.userCharacter === props.character.id ? 'contained' : 'outlined'} color="primary" size='small' onClick={() => {
+                        props?.setUserCharacter(props.character.id);
                     }}>Play as</Button>
                 </Stack>
             </Box>
