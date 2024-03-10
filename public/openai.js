@@ -1,16 +1,24 @@
+const remote = require('@electron/remote');
+const { BrowserWindow } = remote;
 const http = require('http');
 const axios = require('axios');
 const { readCharacter } = require('./charactercard');
 const { loadChat } = require('./chat');
+const EventSourceStream = require('./EventSourceStream');
+
+let aiStatus = {
+    tokensPerSecond: 0,
+}
 
 async function openAiApiCall(url, method, data, apikey = null) {
     try {
-        // const response = await axios({
-        //     method: method,
-        //     url: url,
-        //     body: JSON.stringify(data),
-        // });
-        const response = await axios[method.toLowerCase()](url, data);            
+        const response = await axios({
+            method: method,
+            url: url,
+            body: JSON.stringify(data),
+        });
+        // const response = await axios[method.toLowerCase()](url, data);
+
         return response.data;
     } catch (error) {
         return null;
@@ -31,12 +39,13 @@ async function openAiGetActiveModel(server, apikey = null) {
     // }
 }
 
-async function openAiRequestCompletion(chat_id, character_id) {
+async function openAiRequestCompletion(chat_id, character_id, abortController) {
     const server = await window.electron.getOpenAIServer();
     const url = server + 'v1/completions/';
     const input_prompt = await openAiGetPrompt(chat_id, character_id);
     const chat = await loadChat(chat_id);
     const characters = [];
+    const stream_result = true;
     for (const character_id of chat.characters) {
         const character = await readCharacter(character_id);
         characters.push(character);
@@ -115,12 +124,55 @@ async function openAiRequestCompletion(chat_id, character_id) {
         n_predict: 150,
         mirostat: 0,
         ignore_eos: false,
-        stream: false //TODO but difficult
+        stream: stream_result //TODO but difficult
     }
 
-    const response = await openAiApiCall(url, 'POST', payload);
+    // const response = await openAiApiCall(url, 'POST', payload, null, onProgress);
+    // stream response to onProgress
 
-    return response;
+    // const response = await axios.post(url, payload, {
+    //     headers: {
+    //         'Content-Type': 'application/json',
+    //         // 'Authorization': 'Bearer ' + window.electron.getOpenAIApiKey()
+    //     },
+    //     signal: abortController.signal,
+    //     responseType: 'stream'
+    // });
+    //axios is bugged, cant stream POST requests
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+        signal: abortController.signal,
+    });
+
+    const eventStream = new EventSourceStream();
+    response.body.pipeThrough(eventStream);
+    const reader = eventStream.readable.getReader();
+
+    let text = '';
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value.data === "[DONE]") break;
+
+        const jsonData = JSON.parse(value.data);
+
+        const newText = text + jsonData.choices[0]?.text;
+        text = newText;
+
+        BrowserWindow.getAllWindows()[0].webContents.send('ai-streaming', text);
+
+        console.log(value);
+        // yield _newText;
+    }
+    BrowserWindow.getAllWindows()[0].webContents.send('ai-streaming-finished', '');
+
+    return text;
 }
 
 async function openAiGetPrompt(chat_id, respond_character_id = null) {

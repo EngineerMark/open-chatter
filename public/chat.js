@@ -5,6 +5,11 @@ const fs = require('fs');
 const { v1: uuidv1, v4: uuidv4, } = require('uuid');
 const { openAiGetPrompt, openAiGetActiveModel } = require('./openai');
 
+//stores current generation data
+//particularly useful to kill the generation process if the user changes chat or something
+//or to refuse to generate if one is already in progress
+let generationData = {};
+
 async function loadChatList() {
     const chat_folder = path.join(app.getPath('userData'), 'chats');
     console.log(chat_folder);
@@ -37,6 +42,8 @@ async function createChat(character_ids) {
     }
 
     await saveChat(new_chat_data.id, new_chat_data);
+
+    return new_chat_data.id;
 }
 
 async function loadChat(id) {
@@ -59,22 +66,29 @@ async function saveChat(id, chat_data) {
     fs.writeFileSync(file_path, JSON.stringify(chat_data));
 }
 
-function createMessageObject(character_id, message_content) {
+function createMessageObject(character_id, message_content, is_ai_message = false) {
     return {
         character_id: character_id,
         message: message_content,
         message_id: uuidv4(),
-        creation_date: new Date().toISOString()
+        creation_date: new Date().toISOString(),
+        ai: is_ai_message
     }
 }
 
 async function sendMessage(chat_id, character_id, message_content, is_ai_message = false) {
     const chat = await loadChat(chat_id);
-    chat.messages.push(createMessageObject(character_id, message_content));
+    chat.messages.push(createMessageObject(character_id, message_content, is_ai_message));
     await saveChat(chat_id, chat);
 }
 
 async function generateAIResponse(chat_id, character_id) {
+    // if(generationData?.chat_id !== null){
+    //     console.error('generation already in progress');
+    //     BrowserWindow.getAllWindows()[0].webContents.send('sendError', 'AI is already busy');
+    //     return;
+    // }
+
     // console.log('generating AI response');
     BrowserWindow.getAllWindows()[0].webContents.send('set-app-state', {
         'ai-generating': {
@@ -83,18 +97,26 @@ async function generateAIResponse(chat_id, character_id) {
         }
     });
 
-    const response = await window.electron.openAiRequestCompletion(chat_id, character_id);
+    generationData = {
+        chat_id: chat_id,
+        character_id: character_id,
+        abortController: new AbortController()
+    }
 
-    if(response?.choices?.length === 0){
+    const response = await window.electron.openAiRequestCompletion(chat_id, character_id, generationData.abortController);
+    if(response?.length === 0){
         console.error('AI response failed');
         BrowserWindow.getAllWindows()[0].webContents.send('sendError', 'AI response failed');
     }else{
-        const message = response.choices[0].text.trim();
+        const message = response.trim();
         await sendMessage(chat_id, character_id, message, true);
         //wait 1 second
         await new Promise(resolve => setTimeout(resolve, 1000));
         BrowserWindow.getAllWindows()[0].webContents.send('ai-update-chat', chat_id); //chat_id so the frontend doesnt update if another chat is open
     }
+
+    //reset the generation data
+    generationData = {};
 
     BrowserWindow.getAllWindows()[0].webContents.send('set-app-state', { 'ai-generating': null });
 }

@@ -8,6 +8,7 @@ import { GetChatList, LoadChat, SendMessage } from "../Misc/Chat";
 import { Navigate, ShowNotification } from "../Misc/Helpers";
 import PageLoader from "../Components/PageLoader";
 import SendIcon from '@mui/icons-material/Send';
+import Markdown from "react-markdown";
 const { ipcRenderer } = window.require('electron');
 
 const CHAT_SIDEBAR_LEFT_WIDTH = 240;
@@ -32,6 +33,25 @@ function RouteChat(props) {
         setActiveChat(chat);
     }
 
+    const unloadChat = () => {
+        setActiveChat(null);
+    }
+
+    const createChat = async (characters) => {
+        const id = await window.electron.createChat(characters);
+        await reloadChatList();
+        await loadChat(id);
+    }
+
+    const deleteChat = async (chat) => {
+        if(activeChat && activeChat.id === chat.id){
+            unloadChat();
+        }
+
+        await window.electron.deleteChat(chat.id);
+        await reloadChatList();
+    }
+
     const sendMessage = async (message) => {
         if (!activeChat) {
             ShowNotification("Error", "No chat selected", "error");
@@ -41,6 +61,11 @@ function RouteChat(props) {
 
         //update the chat
         await loadChat(activeChat.id);
+
+        //if we have only 1 character, we automatically call for AI response
+        if (activeChat.characters.length === 1) {
+            requestAiResponse(activeChat.characters[0]);
+        }
     }
 
     const deleteMessage = async (id) => {
@@ -57,6 +82,18 @@ function RouteChat(props) {
 
     const requestAiResponse = async (character_id) => {
         window.electron.generateAIResponse(activeChat.id, character_id);
+    }
+
+    const requestAiRegenerate = async (message) => {
+        if (!message) {
+            ShowNotification("Warning", "No message to regenerate", "warning");
+            return;
+        }
+        const char_id = message.character_id; //otherwise we lose it
+        //delete the message
+        await deleteMessage(message.message_id);
+        //request ai response
+        await requestAiResponse(char_id);
     }
 
     const handleIPCChatUpdateRequest = (event, arg) => {
@@ -76,10 +113,10 @@ function RouteChat(props) {
         })();
 
     }, []);
-    
-    useEffect(()=>{
+
+    useEffect(() => {
         ipcRenderer.on('ai-update-chat', handleIPCChatUpdateRequest);
-    
+
         return () => {
             ipcRenderer.removeListener('ai-update-chat', handleIPCChatUpdateRequest);
         }
@@ -111,18 +148,17 @@ function RouteChat(props) {
     return <>
         {/* full height */}
         {/* sidebar static width, chat will fill the rest of the width */}
-        <ChatCreatorPopup open={isPopupOpen} onClose={(refresh) => {
-            setIsPopupOpen(false);
-            if (refresh) {
-                reloadChatList();
-            }
-        }} />
+        <ChatCreatorPopup open={isPopupOpen}
+            createChat={createChat}
+            onClose={() => {
+                setIsPopupOpen(false);
+            }} />
         <Box sx={{ display: 'flex', height: '100%' }}>
             <Box sx={{ width: CHAT_SIDEBAR_LEFT_WIDTH, flexShrink: 0, height: '100%' }}>
-                <ChatSidebar loadChat={loadChat} disabled={props.appState['ai-generating'] ?? false} onNewChat={() => setIsPopupOpen(true)} list={chatList} />
+                <ChatSidebar loadChat={loadChat} deleteChat={deleteChat} disabled={props.appState['ai-generating'] ?? false} onNewChat={() => setIsPopupOpen(true)} list={chatList} />
             </Box>
             <Box sx={{ flexGrow: 1, ml: 1, height: '100%' }}>
-                <Chat disabled={props.appState['ai-generating'] ?? false} typing={props.appState['ai-generating'] ?? null} sendMessage={sendMessage} deleteMessage={deleteMessage} onEdit={editMessage} chat={activeChat} />
+                <Chat disabled={props.appState['ai-generating'] ?? false} typing={props.appState['ai-generating'] ?? null} requestAiRegenerate={requestAiRegenerate} requestAiResponse={requestAiResponse} sendMessage={sendMessage} deleteMessage={deleteMessage} onEdit={editMessage} chat={activeChat} />
             </Box>
             <Box sx={{ width: CHAT_SIDEBAR_RIGHT_WIDTH, ml: 1, flexShrink: 0, height: '100%' }}>
                 <ChatMemberList disabled={props.appState['ai-generating'] ?? false} requestAiResponse={requestAiResponse} chat={activeChat} />
@@ -149,8 +185,9 @@ function ChatCreatorPopup(props) {
     const createChat = async () => {
         //create chat
         console.log(selectedCharacters);
-        await window.electron.createChat(selectedCharacters);
-        props.onClose?.(true);
+        props?.createChat?.(selectedCharacters);
+        // await window.electron.createChat(selectedCharacters);
+        props.onClose?.();
     }
 
     return <>
@@ -198,7 +235,32 @@ function ChatCreatorPopup(props) {
 
 //list of chats
 function ChatSidebar(props) {
+    const [isDeletionPopupOpen, setIsDeletionPopupOpen] = useState(false);
+    const [selectedChat, setSelectedChat] = useState(null);
+
+    const deleteChat = (chat) => {
+        setSelectedChat(chat);
+        setIsDeletionPopupOpen(true);
+    }
+
     return <>
+        {/* chat deletion confirmation popup */}
+        <Dialog open={isDeletionPopupOpen} onClose={() => setIsDeletionPopupOpen(false)}>
+            <DialogTitle>Confirm deletion</DialogTitle>
+            <DialogContent>
+                <DialogContentText>
+                    Are you sure you want to delete this chat?
+                </DialogContentText>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                    <Button variant="contained" onClick={() => {
+                        //delete chat
+                        props.deleteChat?.(selectedChat);
+                        setIsDeletionPopupOpen(false);
+                    }}>Delete</Button>
+                </Box>
+            </DialogContent>
+        </Dialog>
+
         <Paper sx={{ height: '100%' }}>
             {/* vertical flex box */}
             <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -216,7 +278,7 @@ function ChatSidebar(props) {
                     <Stack spacing={1}>
                         {
                             props.list.map((chat, index) => {
-                                return <ChatListItem disabled={props.disabled} key={index} chat={chat} loadChat={props.loadChat} />
+                                return <ChatListItem deleteChat={deleteChat} disabled={props.disabled} key={index} chat={chat} loadChat={props.loadChat} />
                             })
                         }
                     </Stack>
@@ -305,7 +367,10 @@ function ChatListItem(props) {
             <IconButton size="small">
                 <EditIcon fontSize="inherit" />
             </IconButton>
-            <IconButton size="small">
+            <IconButton size="small"
+                onClick={() => {
+                    props.deleteChat?.(props.chat);
+                }}>
                 <DeleteIcon fontSize="inherit" />
             </IconButton>
         </Box>
@@ -317,12 +382,66 @@ function ChatListItem(props) {
 function Chat(props) {
     const [messageInput, setMessageInput] = useState("");
     const [typingStatus, setTypingStatus] = useState(null);
+    const [lastMessage, setLastMessage] = useState(null);
+    const [canRegenerate, setCanRegenerate] = useState(false);
 
     const sendMessage = async () => {
         //send message
         props.sendMessage?.(messageInput);
         setMessageInput("");
     }
+
+    const handleIPCStreamingMessage = (event, arg) => {
+        setMessageInput(arg);
+    }
+
+    const handleIPCStreamingFinished = (event, arg) => {
+        setMessageInput("");
+    }
+
+    useEffect(() => {
+        ipcRenderer.on('ai-streaming', handleIPCStreamingMessage);
+        ipcRenderer.on('ai-streaming-finished', handleIPCStreamingFinished);
+
+        return () => {
+            ipcRenderer.removeListener('ai-streaming', handleIPCStreamingMessage);
+            ipcRenderer.removeListener('ai-streaming-finished', handleIPCStreamingFinished);
+        }
+    });
+
+    useEffect(() => {
+        //if pressing ctrl+r, also regenerate (if possible)
+        const handleKeyDown = (e) => {
+            if (e.key === 'r' && e.ctrlKey) {
+                if (canRegenerate && lastMessage) {
+                    props.requestAiRegenerate?.(lastMessage);
+                }
+            }
+        }
+
+        window.addEventListener('keydown', handleKeyDown);
+
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        }
+    })
+
+    useEffect(() => {
+        if (props.chat && props.chat.messages?.length > 0) {
+            const _last = props.chat.messages[props.chat.messages.length - 1];
+            setLastMessage(_last);
+            if (_last.character_id) {
+                setCanRegenerate(true);
+            }
+        } else {
+            setCanRegenerate(false);
+            setLastMessage(null);
+        }
+
+        //scroll to bottom
+        const chatBox = document.getElementById('chat-message-list');
+        chatBox?.scrollIntoView(false);
+    }, [props.chat?.messages]);
 
     useEffect(() => {
         (async () => {
@@ -343,7 +462,7 @@ function Chat(props) {
             </Box>
             <Divider />
             <Box sx={{ p: 1, overflowY: 'auto', flexGrow: 1, width: '100%' }}>
-                <List sx={{ width: '100%', bgcolor: 'background.paper', flexDirection: 'column-reverse' }}>
+                <List sx={{ width: '100%', bgcolor: 'background.paper', flexDirection: 'column-reverse' }} id='chat-message-list'>
                     {
                         props.chat && props.chat.messages?.length > 0 ?
                             props.chat.messages.map((message, index) => {
@@ -357,29 +476,47 @@ function Chat(props) {
             {
                 props.typing ? <Box sx={{ p: 1 }}>
                     <Typography variant="body2">{typingStatus?.name} is typing...</Typography>
-                </Box> : null
+                    {/* display box what is being streamed */}
+                    <Paper sx={{ p: 1 }} elevation={3}>
+                        <Typography variant="body2">
+                            <Markdown>
+                                {messageInput}
+                            </Markdown>
+                        </Typography>
+                    </Paper>
+                </Box> :
+                    <>
+                        <Box sx={{ display: 'flex' }}>
+                            <Box sx={{ flexGrow: 1 }} />
+                            <Box>
+                                <Button variant="contained" size='small' disabled={!canRegenerate || !lastMessage || props.disabled} onClick={async () => {
+                                    await props?.requestAiRegenerate?.(lastMessage);
+                                }}>Regenerate</Button>
+                            </Box>
+                        </Box>
+                        <FormControl fullWidth sx={{ pt: 2 }}>
+                            <FilledInput
+                                disabled={props.disabled}
+                                placeholder="Type a message..."
+                                id='chat-message-box-input'
+                                value={messageInput}
+                                onChange={(e) => setMessageInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                        sendMessage();
+                                    }
+                                }}
+                                endAdornment={
+                                    <InputAdornment position="end">
+                                        <IconButton disabled={props.disabled} edge="end" >
+                                            <SendIcon onClick={() => sendMessage()} />
+                                        </IconButton>
+                                    </InputAdornment>
+                                }
+                            />
+                        </FormControl>
+                    </>
             }
-            <FormControl fullWidth sx={{ pt: 2 }}>
-                <FilledInput
-                    disabled={props.disabled}
-                    placeholder="Type a message..."
-                    id='chat-message-box-input'
-                    value={messageInput}
-                    onChange={(e) => setMessageInput(e.target.value)}
-                    onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                            sendMessage();
-                        }
-                    }}
-                    endAdornment={
-                        <InputAdornment position="end">
-                            <IconButton disabled={props.disabled} edge="end" >
-                                <SendIcon onClick={() => sendMessage()} />
-                            </IconButton>
-                        </InputAdornment>
-                    }
-                />
-            </FormControl>
         </Paper>
     </>
 }
@@ -505,7 +642,10 @@ function ChatMessage(props) {
                             setIsEditMode(true);
                         }}
                     >
-                        {props.message.message}
+                        {/* {props.message.message} */}
+                        <Markdown>
+                            {props.message.message}
+                        </Markdown>
                     </Typography>
                 }
             </React.Fragment>}

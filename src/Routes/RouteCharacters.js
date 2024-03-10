@@ -52,32 +52,6 @@ function RouteCharacters() {
                         // background image filling the entire card, nearest neighbor scaling
                         return <Grid item xs={12}>
                             <CharacterCard height={CHARA_CARD_HEIGHT} character={char} />
-
-                            {/* <Card sx={{
-                                height: CHARA_CARD_HEIGHT,
-                            }}>
-                                <Button variant="contained" color="primary" size='small' fullWidth onClick={() => {
-                                    Navigate("/editor/" + char.id);
-                                }}>Edit</Button>
-                                <CardActionArea
-                                    onClick={() => {
-                                        Navigate("/chat/" + char.id);
-                                    }}
-                                    sx={{
-                                        height: "100%",
-                                    }}>
-                                    <CardMedia
-                                        component="img"
-                                        alt={char.name}
-                                        height={CHARA_CARD_HEIGHT - 48}
-                                        image={char.image} />
-                                    <CardContent>
-                                        <Typography variant="body1" align="center">
-                                            {char.name}
-                                        </Typography>
-                                    </CardContent>
-                                </CardActionArea>
-                            </Card> */}
                         </Grid>
                     }) : null
                 }
@@ -94,6 +68,8 @@ function CharacterCard(props) {
                     <Button variant="outlined" color="primary" size='small' onClick={() => {
                         Navigate("/editor/" + props.character.id);
                     }}>Edit</Button>
+                    <Button variant="outlined" color="primary" size='small' onClick={() => {
+                    }}>Play as</Button>
                 </Stack>
             </Box>
             {/* make sure to vertically center the text */}

@@ -23,6 +23,7 @@ const funcList = {
     
     getSettings: getSettings,
     saveSettings: saveSettings,
+    setSetting: setSetting,
     
     getAPIStatus: getAPIStatus,
     getActiveModelName: getActiveModelName,
@@ -90,6 +91,12 @@ async function getOpenAIServer() {
 function saveSettings(settings) {
     const settings_path = path.join(getAppDataPath(), "settings.json");
     fs.writeFileSync(settings_path, JSON.stringify(settings, null, 4));
+}
+
+function setSetting(key, value) {
+    const settings = getSettings();
+    settings[key] = value;
+    saveSettings(settings);
 }
 
 async function getGraphicsCards() {
