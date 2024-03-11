@@ -90,7 +90,7 @@ async function sendMessage(chat_id, character_id, message_content, is_ai_message
     }
 }
 
-async function generateAIResponse(chat_id, character_id) {
+async function generateAIResponse(chat_id, character_id, continue_message_id = null) {
     // if(generationData?.chat_id !== null){
     //     console.error('generation already in progress');
     //     BrowserWindow.getAllWindows()[0].webContents.send('sendError', 'AI is already busy');
@@ -111,13 +111,20 @@ async function generateAIResponse(chat_id, character_id) {
         abortController: new AbortController()
     }
 
-    const response = await window.electron.openAiRequestCompletion(chat_id, character_id, generationData.abortController);
+    const response = await window.electron.openAiRequestCompletion(chat_id, character_id, generationData.abortController, continue_message_id !== null);
     if (response?.length === 0) {
         console.error('AI response failed');
         BrowserWindow.getAllWindows()[0].webContents.send('sendError', 'AI response failed');
     } else {
         const message = response.trim();
-        await sendMessage(chat_id, character_id, message, true);
+        //await sendMessage(chat_id, character_id, message, true);
+        if(!continue_message_id){
+            await sendMessage(chat_id, character_id, message, true);
+        }else{
+            const original_message = await getMessage(chat_id, continue_message_id);
+            const new_text = original_message.message + ' ' + message;
+            await editMessage(chat_id, continue_message_id, new_text);
+        }
         //wait 1 second
         await new Promise(resolve => setTimeout(resolve, 1000));
         BrowserWindow.getAllWindows()[0].webContents.send('ai-update-chat', chat_id); //chat_id so the frontend doesnt update if another chat is open
@@ -141,6 +148,12 @@ async function editMessage(chat_id, message_id, message_content) {
     const message_index = chat.messages.findIndex(message => message.message_id === message_id);
     chat.messages[message_index].message = message_content;
     await saveChat(chat_id, chat);
+}
+
+async function getMessage(chat_id, message_id) {
+    const chat = await loadChat(chat_id);
+    const message = chat.messages.find(message => message.message_id === message_id);
+    return message;
 }
 
 async function deleteChat(id) {

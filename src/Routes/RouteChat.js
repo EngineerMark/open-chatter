@@ -44,7 +44,7 @@ function RouteChat(props) {
     }
 
     const deleteChat = async (chat) => {
-        if(activeChat && activeChat.id === chat.id){
+        if (activeChat && activeChat.id === chat.id) {
             unloadChat();
         }
 
@@ -71,6 +71,7 @@ function RouteChat(props) {
     const deleteMessage = async (id) => {
         //delete message
         await window.electron.deleteMessage(activeChat.id, id);
+        await unloadChat(); //this forces a reload of message, otherwise regen buttons etc dont update
         await loadChat(activeChat.id);
     }
 
@@ -82,6 +83,10 @@ function RouteChat(props) {
 
     const requestAiResponse = async (character_id) => {
         window.electron.generateAIResponse(activeChat.id, character_id);
+    }
+
+    const requestAiContinue = async (message) => {
+        window.electron.generateAIResponse(activeChat.id, message.character_id, message.message_id);
     }
 
     const requestAiRegenerate = async (message) => {
@@ -109,7 +114,7 @@ function RouteChat(props) {
     useEffect(() => {
         (async () => {
             const active_char = await window.electron.getSetting('user_character');
-            if(active_char){
+            if (active_char) {
                 setActiveCharacter(active_char);
             }
 
@@ -163,7 +168,7 @@ function RouteChat(props) {
                 <ChatSidebar loadChat={loadChat} deleteChat={deleteChat} disabled={props.appState['ai-generating'] ?? false} onNewChat={() => setIsPopupOpen(true)} list={chatList} />
             </Box>
             <Box sx={{ flexGrow: 1, ml: 1, height: '100%' }}>
-                <Chat disabled={props.appState['ai-generating'] ?? false} typing={props.appState['ai-generating'] ?? null} requestAiRegenerate={requestAiRegenerate} requestAiResponse={requestAiResponse} sendMessage={sendMessage} deleteMessage={deleteMessage} onEdit={editMessage} chat={activeChat} />
+                <Chat disabled={props.appState['ai-generating'] ?? false} typing={props.appState['ai-generating'] ?? null} requestAiContinue={requestAiContinue} requestAiRegenerate={requestAiRegenerate} requestAiResponse={requestAiResponse} sendMessage={sendMessage} deleteMessage={deleteMessage} onEdit={editMessage} chat={activeChat} />
             </Box>
             <Box sx={{ width: CHAT_SIDEBAR_RIGHT_WIDTH, ml: 1, flexShrink: 0, height: '100%' }}>
                 <ChatMemberList disabled={props.appState['ai-generating'] ?? false} requestAiResponse={requestAiResponse} chat={activeChat} />
@@ -495,6 +500,9 @@ function Chat(props) {
                             <Box sx={{ flexGrow: 1 }} />
                             <Box>
                                 <Button variant="contained" size='small' disabled={!canRegenerate || !lastMessage || props.disabled} onClick={async () => {
+                                    await props?.requestAiContinue?.(lastMessage);
+                                }}>Continue</Button>
+                                <Button sx={{ ml: 1 }} variant="contained" size='small' disabled={!canRegenerate || !lastMessage || props.disabled} onClick={async () => {
                                     await props?.requestAiRegenerate?.(lastMessage);
                                 }}>Regenerate</Button>
                             </Box>

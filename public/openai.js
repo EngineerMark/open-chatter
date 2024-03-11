@@ -47,10 +47,10 @@ async function openAiGetTokenCount(server, data) {
 
 }
 
-async function openAiRequestCompletion(chat_id, character_id, abortController) {
+async function openAiRequestCompletion(chat_id, character_id, abortController, _continue = false) {
     const server = await window.electron.getOpenAIServer();
     const url = server + 'v1/completions/';
-    const input_prompt = await openAiGetPrompt(chat_id, character_id);
+    const input_prompt = await openAiGetPrompt(chat_id, character_id, _continue);
     const chat = await loadChat(chat_id);
     const characters = [];
     const stream_result = true;
@@ -191,7 +191,7 @@ async function openAiRequestCompletion(chat_id, character_id, abortController) {
     return text;
 }
 
-async function openAiGetPrompt(chat_id, respond_character_id = null) {
+async function openAiGetPrompt(chat_id, respond_character_id = null, _continue = false) {
     //converts the chat messages to a prompt that AI can understand
     const chat = await window.electron.getChat(chat_id);
     const character_ids = [];
@@ -227,7 +227,7 @@ async function openAiGetPrompt(chat_id, respond_character_id = null) {
 
     if (respond_character_id) {
         prompt += `## ${responding_character.name}\n`
-        prompt += `- You're "${responding_character.name}" in this never-ending roleplay.\n`
+        prompt += `- You're "${responding_character.name}" in this never-ending roleplay. Keep all replies short. Avoid writing replies for other characters.\n`
     }
 
     prompt += `### Input:\n`;
@@ -251,7 +251,7 @@ async function openAiGetPrompt(chat_id, respond_character_id = null) {
         prompt += name + ": " + message.message + "\n";
     }
 
-    if (respond_character_id) {
+    if (!_continue && respond_character_id) {
         prompt += `${responding_character.name}: `
     }
 

@@ -63,6 +63,7 @@ function App() {
         const gpuData = await GetGraphicsData();
         const isApiActive = await window.electron.getAPIStatus();
         const activeApiModel = await window.electron.getActiveModelName();
+        const stats = await window.electron.getStats();
         const total_vram = gpuData.reduce((acc, gpu) => acc + gpu.memoryTotal, 0);
         const total_vram_used = gpuData.reduce((acc, gpu) => acc + gpu.memoryUsed, 0);
         const total_ram = appData.memData.total;
@@ -74,7 +75,8 @@ function App() {
           total_ram: total_ram,
           total_ram_used: total_ram_used,
           isApiActive: isApiActive,
-          activeApiModel: activeApiModel
+          activeApiModel: activeApiModel,
+          stats: stats
         };
       }
       catch (e) {

@@ -41,7 +41,7 @@ function Sidenav(props) {
                         color: theme.palette.text.primary,
                         borderRight: 'none',
                         [theme.breakpoints.up('md')]: {
-                            top: '50px'
+                            top: '55px'
                         }
                     }
                 }}
