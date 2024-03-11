@@ -472,11 +472,11 @@ function Chat(props) {
             </Box>
             <Divider />
             <Box sx={{ p: 1, overflowY: 'auto', flexGrow: 1, width: '100%' }}>
-                <List sx={{ width: '100%', bgcolor: 'background.paper', flexDirection: 'column-reverse' }} id='chat-message-list'>
+                <List spacing={2} sx={{ width: '100%', bgcolor: 'background.paper', flexDirection: 'column-reverse' }} id='chat-message-list'>
                     {
                         props.chat && props.chat.messages?.length > 0 ?
                             props.chat.messages.map((message, index) => {
-                                return <ListItem sx={{ width: '100%', mb: 1 }} key={index} alignItems="flex-start">
+                                return <ListItem sx={{ width: '100%', m: 1 }} key={index} alignItems="flex-start">
                                     <ChatMessage allowInteraction={!props.disabled} key={index} message={message} onDelete={props.deleteMessage} onEdit={props.onEdit} />
                                 </ListItem>
                             }) : <Typography variant="body1" sx={{ textAlign: 'center' }}>No messages</Typography>
@@ -626,14 +626,16 @@ function ChatMessage(props) {
                             value={tempEditMessage}
                             onChange={(e) => setTempEditMessage(e.target.value)}
                             onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                    //send message
-                                    props.onEdit?.(props.message.message_id, tempEditMessage);
-                                    setIsEditMode(false);
-                                } else if (e.key === "Escape") {
+                                // if (e.key === "Enter") {
+                                //     //send message
+                                //     props.onEdit?.(props.message.message_id, tempEditMessage);
+                                //     setIsEditMode(false);
+                                // }
+                                if (e.key === "Escape") {
                                     setIsEditMode(false);
                                 }
                             }}
+                            multiline
                             endAdornment={
                                 <InputAdornment position="end">
                                     <IconButton edge="end" >
