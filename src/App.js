@@ -57,7 +57,7 @@ function App() {
 
   //system stats updater, every 5 or so seconds
   useEffect(() => {
-    const interval = setInterval(async () => {
+    const _updater = async () => {
       let systemStats = {};
       try {
         const gpuData = await GetGraphicsData();
@@ -84,8 +84,12 @@ function App() {
       }
 
       setSystemStats(systemStats);
-    }, 5000);
+    }
+    _updater();
 
+    const interval = setInterval(async () => {
+      await _updater();
+    }, 5000);
     return () => clearInterval(interval);
   }, [appData]);
 
@@ -103,7 +107,7 @@ function App() {
                 <ToastContainer />
                 <Box sx={{ height: '100%' }}>
                   <Routes>
-                    <Route path="/" element={<RouteHome />} />
+                    <Route path="/" element={<RouteHome systemStats={systemStats} />} />
                     <Route path="/settings" element={<RouteSettings appData={appData} />} />
                     <Route path="/characters" element={<RouteCharacters />} />
                     <Route path="/editor/:id?" element={<RouteCharacterEditor />} />

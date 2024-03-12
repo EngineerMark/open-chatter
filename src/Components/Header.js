@@ -12,10 +12,10 @@ function Header(props) {
                 </Typography>
                 <Box sx={{ ml: 2 }}>
                     <Typography sx={{ fontSize: 12 }}>
-                        {"VRAM: " + ConvertToReadableSize(props.systemStats ? props.systemStats.total_vram_used : 0, "MB") + " / " + ConvertToReadableSize(props.systemStats ? props.systemStats.total_vram : 0, "MB")}
+                        {"VRAM: " + ConvertToReadableSize(props.systemStats?.total_vram_used ?? 0, "MB") + " / " + ConvertToReadableSize(props.systemStats?.total_vram ?? 0, "MB")}
                     </Typography>
                     <Typography sx={{ fontSize: 12 }}>
-                        {"RAM: " + ConvertToReadableSize(props.systemStats ? props.systemStats.total_ram_used : 0, "B") + " / " + ConvertToReadableSize(props.systemStats ? props.systemStats.total_ram : 0, "B")}
+                        {"RAM: " + ConvertToReadableSize(props.systemStats?.total_ram_used ?? 0, "B") + " / " + ConvertToReadableSize(props.systemStats?.total_ram ?? 0, "B")}
                     </Typography>
                 </Box>
                 <Box sx={{ ml: 2 }}>

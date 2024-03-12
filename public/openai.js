@@ -5,16 +5,18 @@ const axios = require('axios');
 const { readCharacter } = require('./charactercard');
 const { loadChat } = require('./chat');
 const EventSourceStream = require('./EventSourceStream');
+const { Summarize } = require('./summarize');
 
 let aiStatus = {
     tokensPerSecond: 0,
 }
 
-async function openAiApiCall(url, method, data, apikey = null) {
+async function openAiApiCall(url, method, data) {
     try {
+        const server = await window.electron.getOpenAIServer();
         const response = await axios({
             method: method,
-            url: url,
+            url: server + url,
             // body: JSON.stringify(data),
             data: data,
         });
@@ -26,22 +28,20 @@ async function openAiApiCall(url, method, data, apikey = null) {
     }
 }
 
-async function openAiValidate(server, apikey = null) {
-    return ((await openAiApiCall(server + 'v1/models', 'GET', null, apikey)) != null);
+async function openAiValidate() {
+    return ((await openAiApiCall('v1/models', 'GET', null)) != null);
 }
 
-async function openAiGetActiveModel(server, apikey = null) {
-    return (await openAiApiCall(server + 'v1/internal/model/info', 'GET', null, apikey));
-    // try {
-    //     const response = await axios.get(server + 'v1/internal/model/info');
-    //     return response.data;
-    // } catch (error) {
-    //     return null;
-    // }
+async function openAiGetActiveModel() {
+    return (await openAiApiCall('v1/internal/model/info', 'GET', null));
 }
 
-async function openAiGetTokenCount(server, data) {
-    return (await openAiApiCall(server + 'v1/internal/token-count', 'POST', {
+async function openAiGetModels() {
+    return (await openAiApiCall('v1/internal/model/list', 'GET', null));
+}
+
+async function openAiGetTokenCount(data) {
+    return (await openAiApiCall('v1/internal/token-count', 'POST', {
         text: data
     }));
 
@@ -162,9 +162,9 @@ async function openAiRequestCompletion(chat_id, character_id, abortController, _
             const _prompt = input_prompt;
             const _response = text;
 
-            const { length: completion_tokens } = await openAiGetTokenCount(server, _response);
-            const { length: prompt_tokens } = await openAiGetTokenCount(server, _prompt);
-            const { model_name: model } = await openAiGetActiveModel(server);
+            const { length: completion_tokens } = await openAiGetTokenCount(_response);
+            const { length: prompt_tokens } = await openAiGetTokenCount(_prompt);
+            const { model_name: model } = await openAiGetActiveModel();
 
             console.log('model', model);
 
@@ -220,8 +220,6 @@ async function openAiGetPrompt(chat_id, respond_character_id = null, _continue =
     //     characters.push(character);
     // }
 
-    console.log('character ids', character_ids);
-    console.log('responding', respond_character_id);
     const responding_character = characters.find(c => c.id === respond_character_id);
     let prompt = "";
 
@@ -248,7 +246,8 @@ async function openAiGetPrompt(chat_id, respond_character_id = null, _continue =
             const character = characters.find(c => c.id === message.character_id);
             name = character.name;
         }
-        prompt += name + ": " + message.message + "\n";
+        let _message = message.message.trim();
+        prompt += name + ": " + _message + "\n";
     }
 
     if (!_continue && respond_character_id) {
@@ -281,5 +280,6 @@ module.exports = {
     openAiValidate,
     openAiGetActiveModel,
     openAiRequestCompletion,
-    openAiGetPrompt
+    openAiGetPrompt,
+    openAiGetModels
 }

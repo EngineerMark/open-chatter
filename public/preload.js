@@ -4,7 +4,7 @@ const { dialog, app } = remote;
 const si = require('systeminformation');
 const path = require('node:path');
 const fs = require('fs');
-const { openAiValidate, openAiGetActiveModel, openAiGetPrompt, openAiRequestCompletion } = require("./openai");
+const { openAiValidate, openAiGetActiveModel, openAiGetPrompt, openAiRequestCompletion, openAiGetModels } = require("./openai");
 const { v1: uuidv1, v4: uuidv4, } = require('uuid');
 const { writeCharacter, readCharacter } = require("./charactercard");
 const { loadChatList, loadChat, createChat, sendMessage, deleteMessage, editMessage, deleteChat, generateAIResponse } = require("./chat");
@@ -57,6 +57,7 @@ const funcList = {
     openAiGetPrompt: openAiGetPrompt,
     openAiRequestCompletion: openAiRequestCompletion,
     generateAIResponse: generateAIResponse,
+    openAiGetModels: openAiGetModels,
 
     getStats: getStats,
     saveStats: saveStats,
@@ -194,7 +195,7 @@ async function getAPIStatus() {
         return false;
     }
 
-    const status = await openAiValidate(settings.openai_api);
+    const status = await openAiValidate();
     return status;
 }
 
@@ -205,7 +206,7 @@ async function getActiveModelName() {
         return false;
     }
 
-    const model = await openAiGetActiveModel(settings.openai_api);
+    const model = await openAiGetActiveModel();
     return model;
 }
 
