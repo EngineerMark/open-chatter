@@ -4,7 +4,7 @@ const { dialog, app } = remote;
 const si = require('systeminformation');
 const path = require('node:path');
 const fs = require('fs');
-const { openAiValidate, openAiGetActiveModel, openAiGetPrompt, openAiRequestCompletion, openAiGetModels } = require("./openai");
+const { openAiValidate, openAiGetActiveModel, openAiGetPrompt, openAiRequestCompletion, openAiGetModels, openAiValidateLocalTextGen, openAiGetModelDetails } = require("./openai");
 const { v1: uuidv1, v4: uuidv4, } = require('uuid');
 const { writeCharacter, readCharacter } = require("./charactercard");
 const { loadChatList, loadChat, createChat, sendMessage, deleteMessage, editMessage, deleteChat, generateAIResponse } = require("./chat");
@@ -14,7 +14,8 @@ const app_data_path = process.env.APPDATA || (process.platform == 'darwin' ? pro
 
 const default_settings = {
     "openai_api": "",
-    "openai_api_key": ""
+    "openai_api_key": "",
+    "ooba_path": ""
 };
 
 const default_stats = {
@@ -58,6 +59,8 @@ const funcList = {
     openAiRequestCompletion: openAiRequestCompletion,
     generateAIResponse: generateAIResponse,
     openAiGetModels: openAiGetModels,
+    openAiValidateLocalTextGen: openAiValidateLocalTextGen,
+    openAiGetModelDetails: openAiGetModelDetails,
 
     getStats: getStats,
     saveStats: saveStats,

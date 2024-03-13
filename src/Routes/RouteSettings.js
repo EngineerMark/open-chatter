@@ -7,6 +7,7 @@ function RouteSettings(props) {
     const [appSettings, setAppSettings] = useState(null);
     const [openaiApi, setOpenAIAPI] = useState(null);
     const [openaiApiKey, setOpenAIAPIKey] = useState(null);
+    const [oobaPath, setOobaPath] = useState(null);
 
     useEffect(() => {
         //get app settings
@@ -14,6 +15,7 @@ function RouteSettings(props) {
         setAppSettings(_settings);
         setOpenAIAPI(_settings.openai_api);
         setOpenAIAPIKey(_settings.openai_api_key);
+        setOobaPath(_settings.ooba_path);
     }, []);
 
     const saveSettings = () => {
@@ -21,6 +23,7 @@ function RouteSettings(props) {
         let _settings = appSettings;
         _settings.openai_api = openaiApi;
         _settings.openai_api_key = openaiApiKey;
+        _settings.ooba_path = oobaPath;
         SaveAppSettings(_settings);
     }
 
@@ -32,11 +35,23 @@ function RouteSettings(props) {
                         <div>
                             <TextField
                                 id="model-selector"
-                                label="OpenAI-compatible API URL"
+                                label="text-generation-webui IP"
                                 size="small"
                                 value={openaiApi ? openaiApi : ""}
                                 onChange={(e) => {
                                     setOpenAIAPI(e.target.value);
+                                }}
+                                fullWidth
+                            />
+                        </div>
+                        <div>
+                            <TextField
+                                id="model-selector"
+                                label="text-generation-webui path"
+                                size="small"
+                                value={oobaPath ? oobaPath : ""}
+                                onChange={(e) => {
+                                    setOobaPath(e.target.value);
                                 }}
                                 fullWidth
                             />

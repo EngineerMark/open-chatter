@@ -57,14 +57,14 @@ export const GetMemoryData = async () => {
     }
 }
 
-export const ConvertToReadableSize = (size, initialType) => {
+export const ConvertToReadableSize = (size, initialType, spaceBetween = true) => {
     let type = initialType;
     let types = ["B", "KB", "MB", "GB", "TB"];
     while (size > 1024) {
         size /= 1024;
         type = types[types.indexOf(type) + 1];
     }
-    return size.toFixed(2) + " " + type;
+    return Number(size.toFixed(2)) + (spaceBetween ? " " : "") + type;
 }
 
 export const GetRamSizeColor = (size) => {

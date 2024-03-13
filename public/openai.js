@@ -1,11 +1,13 @@
 const remote = require('@electron/remote');
-const { BrowserWindow } = remote;
-const http = require('http');
+const { BrowserWindow, app } = remote;
 const axios = require('axios');
 const { readCharacter } = require('./charactercard');
 const { loadChat } = require('./chat');
 const EventSourceStream = require('./EventSourceStream');
-const { Summarize } = require('./summarize');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { parseGGUF, getQuantizationInfo } = require('./gguf');
 
 let aiStatus = {
     tokensPerSecond: 0,
@@ -276,10 +278,140 @@ async function openAiGetCharacterPrompt(character_id) {
     return prompt;
 }
 
+async function openAiIsLocal() {
+    //get server
+    const server = await window.electron.getOpenAIServer();
+    const ip = server.split(':')[0];
+
+    const interfaces = os.networkInterfaces();
+    for (const interfaceName in interfaces) {
+        const addresses = interfaces[interfaceName];
+        for (const addressInfo of addresses) {
+            if (addressInfo.family === 'IPv4' && !addressInfo.internal && addressInfo.address === ip) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+async function openAiValidateLocalTextGen() {
+    if (!openAiIsLocal()) {
+        return false;
+    }
+
+    const path = await window.electron.getSetting('ooba_path');
+    //console.log(path);
+
+    //directories to check if they exist
+    const requiredDirs = [
+        'models', 'modules', 'extensions', 'docker'
+    ]
+
+    for (const dir of requiredDirs) {
+        if (!fs.existsSync(`${path}/${dir}`)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+const MODEL_TYPES = {
+    GGUF: 'gguf',
+    GGML: 'ggml',
+    UNKNOWN: 'unknown'
+}
+
+const CACHE_MODEL_REQUIRED_OBJECTS = [
+    'metadata',
+    'size',
+    'total_parameters',
+    'required_ram'
+]
+
+//api doesnt provide this, we need to read the actual file itself
+//currently only supports gguf
+async function openAiGetModelDetails(model_name) {
+    const cache_folder = path.join(app.getPath('userData'), 'models');
+    // const cache_path = path.join(app.getPath('userData'), 'models', model_name + '.json');
+    const cache_path = path.join(cache_folder, model_name + '.json');
+
+    if (!fs.existsSync(cache_folder)) {
+        fs.mkdirSync(cache_folder);
+    }
+
+    if (!fs.existsSync(cache_path)) {
+        fs.writeFileSync(cache_path, '{}', 'utf-8');
+    }
+
+    let cached_model = JSON.parse(fs.readFileSync(cache_path, 'utf-8'));
+
+    const missing_objects = [];
+    if (cached_model) {
+        for (const required_object of CACHE_MODEL_REQUIRED_OBJECTS) {
+            if (!cached_model[required_object]) {
+                missing_objects.push(required_object);
+            }
+        }
+
+        if (missing_objects.length === 0) {
+            return cached_model;
+        }
+    } else {
+        missing_objects.push(...CACHE_MODEL_REQUIRED_OBJECTS);
+        cached_model = {};
+    }
+
+    const ooba_path = await window.electron.getSetting('ooba_path');
+    const model_path = `${ooba_path}/models/${model_name}`;
+
+    if (!fs.existsSync(model_path)) {
+        BrowserWindow.getAllWindows()[0].webContents.send('sendError', `Model ${model_name} does not exist. Does path point to incorrect text-gen instance?`);
+        return null;
+    }
+
+    if (missing_objects.includes('metadata')) {
+        const metadata = await parseGGUF(model_path);
+        cached_model.metadata = metadata;
+    }
+
+    if (missing_objects.includes('size')) {
+        const size = fs.statSync(model_path).size;
+        cached_model.size = size;
+    }
+
+    if (missing_objects.includes('total_parameters')) {
+        const embed_parameters = cached_model.metadata.metadata.tokenizer.ggml.tokens.length * cached_model.metadata.metadata.llama.embedding_length;
+        const num_layers = cached_model.metadata.metadata.llama.block_count; //???
+        const attn_module_parameters = (4 * cached_model.metadata.metadata.llama.embedding_length) * (128 * 4) * 10; //magic number fuckery
+        const mlp_block_parameters = 3 * cached_model.metadata.metadata.llama.embedding_length * cached_model.metadata.metadata.llama.feed_forward_length;
+        const per_layer_rms_norm_parameters = 2 * cached_model.metadata.metadata.llama.embedding_length;
+        const pre_lm_head_rms_norm_parameters = cached_model.metadata.metadata.llama.embedding_length;
+        const lm_head_parameters = cached_model.metadata.metadata.llama.embedding_length * cached_model.metadata.metadata.tokenizer.ggml.tokens.length;
+        const total_parameters = embed_parameters + num_layers * (attn_module_parameters + mlp_block_parameters + per_layer_rms_norm_parameters) + pre_lm_head_rms_norm_parameters + lm_head_parameters;
+        cached_model.total_parameters = total_parameters;
+    }
+
+    if (missing_objects.includes('required_ram')) {
+        const { name: qname, bits } = getQuantizationInfo(cached_model.metadata.metadata.general.file_type);
+        const gb_per_token = 0.00028;
+        const ram = (((cached_model.total_parameters / 1.0e+9) * 4) / (32 / bits) + gb_per_token * cached_model.metadata.metadata.llama.context_length) * 1.2;
+        cached_model.required_ram = ram;
+    }
+
+    //save to cache
+    fs.writeFileSync(cache_path, JSON.stringify(cached_model, null, 4), 'utf-8');
+
+    return cached_model;
+}
+
 module.exports = {
     openAiValidate,
     openAiGetActiveModel,
     openAiRequestCompletion,
     openAiGetPrompt,
-    openAiGetModels
+    openAiGetModels,
+    openAiValidateLocalTextGen,
+    openAiGetModelDetails
 }
